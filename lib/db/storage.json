@@ -1,0 +1,698 @@
+{
+  "halls": [
+    {
+      "id": "hall-ansariya",
+      "name": "Ansariya Gulf Auditorium",
+      "location": "Jattipalla Road, Navoor, Sullia, Dakshina Kannada",
+      "address": "Jattipalla Road, Navoor, Sullia, Dakshina Kannada",
+      "capacity": 1200,
+      "imageUrl": "assets/images/sullia_navoor_ansariya_auditorium.jpg",
+      "description": "A massive community destination perfect for grand traditional marriages and large family receptions.",
+      "rules": "1. Hall premises must be vacated strictly by the conclusion of the booked time slot.\n2. Moderate decibel sound limits must be observed after 10:00 PM per civic guidelines.\n3. Advance payment is required to confirm reservation within the 48-hour hold window.\n4. Cleanliness of the dining and catering bays must be maintained.",
+      "contactPhone": "+91 94481 23450",
+      "contactEmail": "contact@ansariyaauditorium.com"
+    },
+    {
+      "id": "hall-kvg",
+      "name": "K.V.G Samudaya Bhavana",
+      "location": "Aletty Road, Sullia, Dakshina Kannada (Near KVG Engineering College Campus)",
+      "address": "Aletty Road, Sullia, Dakshina Kannada (Near KVG Engineering College Campus)",
+      "capacity": 1500,
+      "imageUrl": "assets/images/sullia_aletty_kvg_samudaya_bhavana.jpg",
+      "description": "Massive multi-hall landmark featuring dedicated dual-catering layouts (separate veg/non-veg spaces), extensive heavy-duty kitchens, and expansive vehicle parking.",
+      "rules": "1. Separate vegetarian and non-vegetarian catering sections must be strictly observed.\n2. Campus security regulations apply for late night vehicle movement.\n3. Advance payment of 25% locks the slot atomically upon supervisor confirmation.\n4. Outside decorators must clear scaffolding within 3 hours of event closure.",
+      "contactPhone": "+91 94482 34561",
+      "contactEmail": "kvgbhavana@kvg.edu.in"
+    },
+    {
+      "id": "hall-okkaliga",
+      "name": "Okkaliga Gowda Samudaya Bhavana",
+      "location": "Tenkila, Mani-Puttur Bypass, Puttur, Dakshina Kannada",
+      "address": "Tenkila, Mani-Puttur Bypass, Puttur, Dakshina Kannada",
+      "capacity": 1800,
+      "imageUrl": "assets/images/puttur_tenkila_okkaliga_gowda_samudaya_bhavana.jpg",
+      "description": "Newly renovated, premium 28,000 sq. ft. modern architectural masterpiece featuring a massive underground basement dining hall fitting over 1,500 people.",
+      "rules": "1. Underground basement dining hall elevators and escalators are monitored by building security.\n2. Advance payment is required upon supervisor approval to secure slot hold.\n3. Waste disposal must be segregated at source in the utility collection bay.",
+      "contactPhone": "+91 94483 45672",
+      "contactEmail": "info@okkaligabhavana.org"
+    },
+    {
+      "id": "hall-havyaka",
+      "name": "Havyaka Sabha Bhavana",
+      "location": "Bannur, Puttur, Dakshina Kannada",
+      "address": "Bannur, Puttur, Dakshina Kannada",
+      "capacity": 800,
+      "imageUrl": "assets/images/puttur_bannur_havyaka_sabha_bhavana.jpg",
+      "description": "Clean, peaceful traditional venue positioned comfortably away from city traffic jams, located right adjacent to the Balamuri Ganapati Temple.",
+      "rules": "1. Pure vegetarian catering is permitted on hall premises.\n2. Temple sanctity guidelines and peaceful decibel norms must be respected.\n3. 25% advance locks the reservation atomically.",
+      "contactPhone": "+91 94484 56783",
+      "contactEmail": "contact@havyakasabhaputtur.org"
+    },
+    {
+      "id": "hall-janapriya",
+      "name": "Janapriya Garden Hall",
+      "location": "Netlamudnur, Puttur-Mani Highway, Dakshina Kannada",
+      "address": "Netlamudnur, Puttur-Mani Highway, Dakshina Kannada",
+      "capacity": 1000,
+      "imageUrl": "assets/images/netlamudnur_highway_janapriya_gardens.jpg",
+      "description": "Beautiful, sprawling green lawn venue featuring distinct standalone architecture, flexible separate dining spaces, and massive outdoor vehicle parking grounds.",
+      "rules": "1. Highway approach and parking marshals must ensure clear vehicle corridors.\n2. Lawn decorations and tent stakes must not damage underground turf irrigation.\n3. Amplified music transitions indoors by 10:00 PM.",
+      "contactPhone": "+91 94485 67894",
+      "contactEmail": "janapriyagardens@gmail.com"
+    },
+    {
+      "id": "hall-indian",
+      "name": "Indian Auditorium",
+      "location": "Peraje, Neralkatte near Mani, Bantwal, Dakshina Kannada",
+      "address": "Peraje, Neralkatte near Mani, Bantwal, Dakshina Kannada",
+      "capacity": 950,
+      "imageUrl": "assets/images/mani_neralkatte_indian_auditorium.jpg",
+      "description": "Strategic central crossroads venue built with an accessible all-ground-floor design where the main seating hall, stage, and catering bays align seamlessly on a single tier.",
+      "rules": "1. Ground-floor accessibility ramps and fire egress points must remain unobstructed.\n2. Automatic generator fuel backup surcharge applies for continuous power over 8 hours.\n3. Advance payment holds slot exclusively for 48 hours.",
+      "contactPhone": "+91 94486 78905",
+      "contactEmail": "indianauditorium.mani@gmail.com"
+    },
+    {
+      "id": "hall-sagar",
+      "name": "Sagar Auditorium",
+      "location": "Narikombu, Panemangalore, Bantwal, Dakshina Kannada",
+      "address": "Narikombu, Panemangalore, Bantwal, Dakshina Kannada",
+      "capacity": 1100,
+      "imageUrl": "assets/images/panemangalore_narikombu_sagar_auditorium.jpg",
+      "description": "Premium, heavily soundproofed multi-tier venue offering robust central air conditioning, pristine indoor acoustic treatments, and an isolated dining hall layout lower down.",
+      "rules": "1. Central air conditioning and acoustic sound limiter guidelines apply.\n2. Separate lower-tier dining access requires designated catering crew passes.\n3. Advance payment locks slot upon supervisor approval.",
+      "contactPhone": "+91 94487 89016",
+      "contactEmail": "sagarnarikombu@sagarauditorium.com"
+    },
+    {
+      "id": "hall-adyar",
+      "name": "Adyar Gardens",
+      "location": "Highway opposite Sahyadri College, Adyar, Mangalore, Dakshina Kannada",
+      "address": "Highway opposite Sahyadri College, Adyar, Mangalore, Dakshina Kannada",
+      "capacity": 2500,
+      "imageUrl": "assets/images/mangalore_adyar_gardens.jpg",
+      "description": "One of the district's premier luxury destination landmarks blending magnificent indoor grand halls with beautiful, manicured open-air green lawns.",
+      "rules": "1. Lawn ceremonies must conform to civic decibel guidelines past 10:00 PM.\n2. Highway parking marshals provided for large gatherings.\n3. Full reservation tariff includes generator backup and housekeeping.",
+      "contactPhone": "+91 824 227 7888",
+      "contactEmail": "bookings@adyar.garden"
+    },
+    {
+      "id": "hall-shoolin",
+      "name": "Shoolin Palace",
+      "location": "Airport Road, Maravoor Bridge, Mangalore, Dakshina Kannada",
+      "address": "Airport Road, Maravoor Bridge, Mangalore, Dakshina Kannada",
+      "capacity": 1200,
+      "imageUrl": "assets/images/mangalore_maravoor_shoolin_palace.jpg",
+      "description": "Ultra-premium, upscale resort-style palace featuring soundproof interiors, private luxury stay suites, and a dramatic movable stage system set over a sleek swimming pool.",
+      "rules": "1. Pool safety protocols and movable stage operations monitored by certified staff.\n2. Private luxury suites check-in coordinated with event timeline.\n3. 25% advance holds booking upon supervisor confirmation.",
+      "contactPhone": "+91 824 298 9999",
+      "contactEmail": "concierge@shoolinpalace.com"
+    }
+  ],
+  "timeSlots": [
+    {
+      "id": "slot-ansariya-morning",
+      "hallId": "hall-ansariya",
+      "label": "Morning Slot (7:30 AM – 1:30 PM)",
+      "startTime": "07:30",
+      "endTime": "13:30",
+      "basePricePaise": 2500000
+    },
+    {
+      "id": "slot-ansariya-evening",
+      "hallId": "hall-ansariya",
+      "label": "Evening Reception (3:30 PM – 10:30 PM)",
+      "startTime": "15:30",
+      "endTime": "22:30",
+      "basePricePaise": 3500000
+    },
+    {
+      "id": "slot-ansariya-fullday",
+      "hallId": "hall-ansariya",
+      "label": "Full Day Grand Package (7:30 AM – 10:30 PM)",
+      "startTime": "07:30",
+      "endTime": "22:30",
+      "basePricePaise": 5500000
+    },
+    {
+      "id": "slot-kvg-morning",
+      "hallId": "hall-kvg",
+      "label": "Morning Muhurtham (6:00 AM – 1:30 PM)",
+      "startTime": "06:00",
+      "endTime": "13:30",
+      "basePricePaise": 3000000
+    },
+    {
+      "id": "slot-kvg-evening",
+      "hallId": "hall-kvg",
+      "label": "Evening Reception (3:30 PM – 10:30 PM)",
+      "startTime": "15:30",
+      "endTime": "22:30",
+      "basePricePaise": 4000000
+    },
+    {
+      "id": "slot-kvg-fullday",
+      "hallId": "hall-kvg",
+      "label": "Full Day Dual-Hall Package (6:00 AM – 10:30 PM)",
+      "startTime": "06:00",
+      "endTime": "22:30",
+      "basePricePaise": 6500000
+    },
+    {
+      "id": "slot-okkaliga-morning",
+      "hallId": "hall-okkaliga",
+      "label": "Morning Ceremonial Slot (7:00 AM – 2:00 PM)",
+      "startTime": "07:00",
+      "endTime": "14:00",
+      "basePricePaise": 4500000
+    },
+    {
+      "id": "slot-okkaliga-evening",
+      "hallId": "hall-okkaliga",
+      "label": "Evening Grand Reception (3:30 PM – 11:00 PM)",
+      "startTime": "15:30",
+      "endTime": "23:00",
+      "basePricePaise": 6000000
+    },
+    {
+      "id": "slot-okkaliga-fullday",
+      "hallId": "hall-okkaliga",
+      "label": "Full Day Modern Landmark Package (7:00 AM – 11:00 PM)",
+      "startTime": "07:00",
+      "endTime": "23:00",
+      "basePricePaise": 9500000
+    },
+    {
+      "id": "slot-havyaka-morning",
+      "hallId": "hall-havyaka",
+      "label": "Morning Muhurtham & Puja (6:00 AM – 1:30 PM)",
+      "startTime": "06:00",
+      "endTime": "13:30",
+      "basePricePaise": 1800000
+    },
+    {
+      "id": "slot-havyaka-evening",
+      "hallId": "hall-havyaka",
+      "label": "Evening Traditional Reception (3:30 PM – 9:30 PM)",
+      "startTime": "15:30",
+      "endTime": "21:30",
+      "basePricePaise": 2500000
+    },
+    {
+      "id": "slot-havyaka-fullday",
+      "hallId": "hall-havyaka",
+      "label": "Full Day Traditional Package (6:00 AM – 9:30 PM)",
+      "startTime": "06:00",
+      "endTime": "21:30",
+      "basePricePaise": 3800000
+    },
+    {
+      "id": "slot-janapriya-morning",
+      "hallId": "hall-janapriya",
+      "label": "Morning Garden Brunch (8:00 AM – 2:00 PM)",
+      "startTime": "08:00",
+      "endTime": "14:00",
+      "basePricePaise": 2800000
+    },
+    {
+      "id": "slot-janapriya-evening",
+      "hallId": "hall-janapriya",
+      "label": "Evening Sunset Lawn Gala (3:30 PM – 10:30 PM)",
+      "startTime": "15:30",
+      "endTime": "22:30",
+      "basePricePaise": 4200000
+    },
+    {
+      "id": "slot-janapriya-fullday",
+      "hallId": "hall-janapriya",
+      "label": "Full Day Sprawling Lawn Package (8:00 AM – 10:30 PM)",
+      "startTime": "08:00",
+      "endTime": "22:30",
+      "basePricePaise": 6500000
+    },
+    {
+      "id": "slot-indian-morning",
+      "hallId": "hall-indian",
+      "label": "Morning Slot (7:30 AM – 1:30 PM)",
+      "startTime": "07:30",
+      "endTime": "13:30",
+      "basePricePaise": 2200000
+    },
+    {
+      "id": "slot-indian-evening",
+      "hallId": "hall-indian",
+      "label": "Evening Crossroads Reception (3:30 PM – 10:00 PM)",
+      "startTime": "15:30",
+      "endTime": "22:00",
+      "basePricePaise": 3200000
+    },
+    {
+      "id": "slot-indian-fullday",
+      "hallId": "hall-indian",
+      "label": "Full Day Ground-Floor Package (7:30 AM – 10:00 PM)",
+      "startTime": "07:30",
+      "endTime": "22:00",
+      "basePricePaise": 5000000
+    },
+    {
+      "id": "slot-sagar-morning",
+      "hallId": "hall-sagar",
+      "label": "Morning Acoustic Session (8:00 AM – 2:00 PM)",
+      "startTime": "08:00",
+      "endTime": "14:00",
+      "basePricePaise": 3200000
+    },
+    {
+      "id": "slot-sagar-evening",
+      "hallId": "hall-sagar",
+      "label": "Evening Soundproof Gala (3:30 PM – 10:30 PM)",
+      "startTime": "15:30",
+      "endTime": "22:30",
+      "basePricePaise": 4800000
+    },
+    {
+      "id": "slot-sagar-fullday",
+      "hallId": "hall-sagar",
+      "label": "Full Day Multi-Tier Package (8:00 AM – 10:30 PM)",
+      "startTime": "08:00",
+      "endTime": "22:30",
+      "basePricePaise": 7500000
+    },
+    {
+      "id": "slot-adyar-morning",
+      "hallId": "hall-adyar",
+      "label": "Morning Royal Pavilion (7:00 AM – 2:00 PM)",
+      "startTime": "07:00",
+      "endTime": "14:00",
+      "basePricePaise": 6500000
+    },
+    {
+      "id": "slot-adyar-evening",
+      "hallId": "hall-adyar",
+      "label": "Evening Grand Lawn & Ballroom (3:30 PM – 11:30 PM)",
+      "startTime": "15:30",
+      "endTime": "23:30",
+      "basePricePaise": 9500000
+    },
+    {
+      "id": "slot-adyar-fullday",
+      "hallId": "hall-adyar",
+      "label": "Full Day Luxury Destination Package (7:00 AM – 11:30 PM)",
+      "startTime": "07:00",
+      "endTime": "23:30",
+      "basePricePaise": 15000000
+    },
+    {
+      "id": "slot-shoolin-morning",
+      "hallId": "hall-shoolin",
+      "label": "Morning Palace Soiree (8:00 AM – 2:00 PM)",
+      "startTime": "08:00",
+      "endTime": "14:00",
+      "basePricePaise": 7500000
+    },
+    {
+      "id": "slot-shoolin-evening",
+      "hallId": "hall-shoolin",
+      "label": "Evening Poolside & Movable Stage Gala (3:30 PM – 12:00 AM)",
+      "startTime": "15:30",
+      "endTime": "24:00",
+      "basePricePaise": 11000000
+    },
+    {
+      "id": "slot-shoolin-fullday",
+      "hallId": "hall-shoolin",
+      "label": "Full Day Resort Takeover & Suites (8:00 AM – 12:00 AM)",
+      "startTime": "08:00",
+      "endTime": "24:00",
+      "basePricePaise": 17500000
+    }
+  ],
+  "facilities": [
+    {
+      "id": "f-ans-1",
+      "hallId": "hall-ansariya",
+      "name": "Grand Marriage Staging",
+      "description": "Deep illuminated stage suitable for traditional marriage mandaps"
+    },
+    {
+      "id": "f-ans-2",
+      "hallId": "hall-ansariya",
+      "name": "500-Seat Dining Wing",
+      "description": "Spacious concurrent dining bay with handwash bays"
+    },
+    {
+      "id": "f-ans-3",
+      "hallId": "hall-ansariya",
+      "name": "Bridal Dressing Suites",
+      "description": "2 AC green rooms with private attached washrooms"
+    },
+    {
+      "id": "f-ans-4",
+      "hallId": "hall-ansariya",
+      "name": "100% Generator Backup",
+      "description": "Heavy duty automatic silent generator system"
+    },
+    {
+      "id": "f-ans-5",
+      "hallId": "hall-ansariya",
+      "name": "150-Vehicle Parking",
+      "description": "Paved interlocking parking yard"
+    },
+    {
+      "id": "f-kvg-1",
+      "hallId": "hall-kvg",
+      "name": "Dual-Catering Layouts",
+      "description": "Separate independent veg and non-veg dining facilities"
+    },
+    {
+      "id": "f-kvg-2",
+      "hallId": "hall-kvg",
+      "name": "Heavy-Duty Commercial Kitchens",
+      "description": "Dual kitchen bays built for high-volume cooking"
+    },
+    {
+      "id": "f-kvg-3",
+      "hallId": "hall-kvg",
+      "name": "Multi-Hall Staging",
+      "description": "Main auditorium with adjoining reception and cultural halls"
+    },
+    {
+      "id": "f-kvg-4",
+      "hallId": "hall-kvg",
+      "name": "Expansive Vehicle Parking",
+      "description": "Capacity for over 300 cars and community buses"
+    },
+    {
+      "id": "f-kvg-5",
+      "hallId": "hall-kvg",
+      "name": "6 Guest Dressing Rooms",
+      "description": "Air-conditioned suites for hosts and bridal party"
+    },
+    {
+      "id": "f-okk-1",
+      "hallId": "hall-okkaliga",
+      "name": "1,500-Capacity Basement Dining",
+      "description": "Massive underground basement dining hall fitting over 1,500 people"
+    },
+    {
+      "id": "f-okk-2",
+      "hallId": "hall-okkaliga",
+      "name": "28,000 sq.ft Modern Architecture",
+      "description": "Newly renovated modern architectural masterpiece"
+    },
+    {
+      "id": "f-okk-3",
+      "hallId": "hall-okkaliga",
+      "name": "Central Air Conditioning",
+      "description": "Ducted multi-zone HVAC system throughout auditorium"
+    },
+    {
+      "id": "f-okk-4",
+      "hallId": "hall-okkaliga",
+      "name": "Passenger Lifts & Escalators",
+      "description": "Modern elevator access to underground dining"
+    },
+    {
+      "id": "f-okk-5",
+      "hallId": "hall-okkaliga",
+      "name": "Bypass Highway Frontage",
+      "description": "Easy access from Mani-Puttur Bypass with valet bays"
+    },
+    {
+      "id": "f-hav-1",
+      "hallId": "hall-havyaka",
+      "name": "Traditional Banana Leaf Dining",
+      "description": "Clean seated dining layout honoring traditional banquet customs"
+    },
+    {
+      "id": "f-hav-2",
+      "hallId": "hall-havyaka",
+      "name": "Adjacent to Balamuri Ganapati Temple",
+      "description": "Spiritual, serene ambience away from city traffic jams"
+    },
+    {
+      "id": "f-hav-3",
+      "hallId": "hall-havyaka",
+      "name": "Dedicated Vedic Puja Stage",
+      "description": "Specially constructed raised platform for traditional rituals"
+    },
+    {
+      "id": "f-hav-4",
+      "hallId": "hall-havyaka",
+      "name": "Pure Vegetarian Kitchen",
+      "description": "Spotless industrial kitchen for traditional vegetarian feasts"
+    },
+    {
+      "id": "f-jan-1",
+      "hallId": "hall-janapriya",
+      "name": "Sprawling Green Lawns",
+      "description": "Manicured outdoor lawns suitable for open-air weddings and receptions"
+    },
+    {
+      "id": "f-jan-2",
+      "hallId": "hall-janapriya",
+      "name": "Distinct Standalone Architecture",
+      "description": "Iconic standalone building with expansive banquet bays"
+    },
+    {
+      "id": "f-jan-3",
+      "hallId": "hall-janapriya",
+      "name": "Flexible Separate Dining Spaces",
+      "description": "Independent covered dining pavilions adjacent to main lawn"
+    },
+    {
+      "id": "f-jan-4",
+      "hallId": "hall-janapriya",
+      "name": "Massive Outdoor Vehicle Parking",
+      "description": "Extensive grounds accommodating hundreds of vehicles"
+    },
+    {
+      "id": "f-ind-1",
+      "hallId": "hall-indian",
+      "name": "All-Ground-Floor Design",
+      "description": "Accessible single-tier layout with seating, stage, and catering aligned"
+    },
+    {
+      "id": "f-ind-2",
+      "hallId": "hall-indian",
+      "name": "Strategic Crossroads Location",
+      "description": "Located at Peraje, Neralkatte near Mani crossroads"
+    },
+    {
+      "id": "f-ind-3",
+      "hallId": "hall-indian",
+      "name": "Wheelchair & Elder Friendly",
+      "description": "Zero steps barrier-free access from entrance to dining hall"
+    },
+    {
+      "id": "f-ind-4",
+      "hallId": "hall-indian",
+      "name": "100% DG Power Backup",
+      "description": "Automated continuous generator supply"
+    },
+    {
+      "id": "f-sag-1",
+      "hallId": "hall-sagar",
+      "name": "Heavily Soundproofed Multi-Tier",
+      "description": "Engineered acoustics and acoustic glass dampening"
+    },
+    {
+      "id": "f-sag-2",
+      "hallId": "hall-sagar",
+      "name": "Robust Central Air Conditioning",
+      "description": "High-capacity chillers ensuring total indoor comfort"
+    },
+    {
+      "id": "f-sag-3",
+      "hallId": "hall-sagar",
+      "name": "Isolated Dining Hall Layout",
+      "description": "Independent lower-tier dining bay isolating catering movement"
+    },
+    {
+      "id": "f-sag-4",
+      "hallId": "hall-sagar",
+      "name": "Concert PA & Truss Lighting",
+      "description": "Integrated stage sound and theatrical light grid"
+    },
+    {
+      "id": "f-ady-1",
+      "hallId": "hall-adyar",
+      "name": "Magnificent Indoor Grand Halls",
+      "description": "Soaring ceilings and chandeliers for royal receptions"
+    },
+    {
+      "id": "f-ady-2",
+      "hallId": "hall-adyar",
+      "name": "Manicured Open-Air Green Lawns",
+      "description": "Lush expansive gardens adorned with romantic fairy illumination"
+    },
+    {
+      "id": "f-ady-3",
+      "hallId": "hall-adyar",
+      "name": "Luxury Destination Weddings",
+      "description": "District premier landmark on Highway opposite Sahyadri College"
+    },
+    {
+      "id": "f-ady-4",
+      "hallId": "hall-adyar",
+      "name": "500-Car Parking & Valet",
+      "description": "Organized parking corridor with valet staff"
+    },
+    {
+      "id": "f-sho-1",
+      "hallId": "hall-shoolin",
+      "name": "Movable Stage Over Swimming Pool",
+      "description": "Dramatic movable stage system engineered over a sleek swimming pool"
+    },
+    {
+      "id": "f-sho-2",
+      "hallId": "hall-shoolin",
+      "name": "Private Luxury Stay Suites",
+      "description": "High-end air-conditioned accommodation suites for bride and VIPs"
+    },
+    {
+      "id": "f-sho-3",
+      "hallId": "hall-shoolin",
+      "name": "Soundproof Luxury Interiors",
+      "description": "Resort-style luxury finish with acoustic insulation"
+    },
+    {
+      "id": "f-sho-4",
+      "hallId": "hall-shoolin",
+      "name": "Airport Road VIP Corridor",
+      "description": "Minutes from Maravoor Bridge and Mangalore International Airport"
+    }
+  ],
+  "settings": {
+    "ADVANCE_PERCENTAGE": "25",
+    "HOLD_HOURS": "48",
+    "CANCELLATION_FULL_DAYS": "7",
+    "CANCELLATION_PARTIAL_DAYS": "3",
+    "CLEANING_DEPOSIT_PAISE": "500000"
+  },
+  "admins": [
+    {
+      "id": "admin-1",
+      "name": "District Reservation Officer",
+      "email": "admin@communityhall.gov.in",
+      "role": "SUPER_ADMIN",
+      "passwordHash": ".2k0j2w.tQzV4j2x5k2y9z0a1b2c3d4e",
+      "createdAt": "2026-10-27T20:17:09.923Z"
+    },
+    {
+      "id": "admin-2",
+      "name": "Dakshina Kannada Venue Supervisor",
+      "email": "supervisor@communityhall.gov.in",
+      "role": "ADMIN",
+      "passwordHash": ".2k0j2w.tQzV4j2x5k2y9z0a1b2c3d4e",
+      "createdAt": "2026-10-27T20:17:09.923Z"
+    }
+  ],
+  "bookings": [
+    {
+      "id": "bk-1",
+      "reference": "DK-20261028-101",
+      "hallId": "hall-ansariya",
+      "slotId": "slot-ansariya-evening",
+      "eventDate": "2026-10-28",
+      "applicantName": "Mohammed Zubair",
+      "applicantPhone": "9448112233",
+      "applicantEmail": "zubair.navoor@example.com",
+      "organisation": "Navoor Community Trust",
+      "eventType": "Grand Marriage Reception",
+      "guestCount": 850,
+      "notes": "Stage floral setup commences at 1:00 PM.",
+      "status": "CONFIRMED",
+      "holdExpiresAt": null,
+      "totalAmountPaise": 3500000,
+      "advanceAmountPaise": 875000,
+      "activeSlotKey": "hall-ansariya_2026-10-28_slot-ansariya-evening",
+      "createdAt": "2026-10-24T20:17:09.923Z",
+      "updatedAt": "2026-10-25T20:17:09.923Z"
+    },
+    {
+      "id": "bk-2",
+      "reference": "DK-20261030-102",
+      "hallId": "hall-okkaliga",
+      "slotId": "slot-okkaliga-evening",
+      "eventDate": "2026-10-30",
+      "applicantName": "Harish Gowda",
+      "applicantPhone": "9448223344",
+      "applicantEmail": "harish.gowda@example.com",
+      "eventType": "Wedding Reception",
+      "guestCount": 1200,
+      "notes": "Basement dining buffet setup required by 5:00 PM.",
+      "status": "PENDING",
+      "holdExpiresAt": null,
+      "totalAmountPaise": 6000000,
+      "advanceAmountPaise": 1500000,
+      "createdAt": "2026-10-26T20:17:09.923Z",
+      "updatedAt": "2026-10-26T20:17:09.923Z"
+    },
+    {
+      "id": "bk-3",
+      "reference": "DK-20261102-103",
+      "hallId": "hall-adyar",
+      "slotId": "slot-adyar-evening",
+      "eventDate": "2026-11-02",
+      "applicantName": "Rohan Alva",
+      "applicantPhone": "9448334455",
+      "applicantEmail": "rohan.alva@example.com",
+      "organisation": "Sahyadri Cultural Forum",
+      "eventType": "Destination Wedding Gala",
+      "guestCount": 1600,
+      "notes": "Open lawn lighting setup on the manicured grounds.",
+      "status": "APPROVED_AWAITING_PAYMENT",
+      "holdExpiresAt": "2026-10-29T08:17:09.923Z",
+      "totalAmountPaise": 9500000,
+      "advanceAmountPaise": 2375000,
+      "activeSlotKey": "hall-adyar_2026-11-02_slot-adyar-evening",
+      "createdAt": "2026-10-27T08:17:09.923Z",
+      "updatedAt": "2026-10-27T08:17:09.923Z"
+    }
+  ],
+  "payments": [
+    {
+      "id": "pay-1",
+      "bookingId": "bk-1",
+      "razorpayOrderId": "order_test_dk_101",
+      "razorpayPaymentId": "pay_test_dk_101",
+      "amountPaise": 875000,
+      "currency": "INR",
+      "status": "PAID",
+      "method": "RAZORPAY",
+      "paidAt": "2026-10-25T20:17:09.923Z",
+      "createdAt": "2026-10-25T20:17:09.923Z"
+    }
+  ],
+  "refunds": [],
+  "maintenance": [
+    {
+      "id": "maint-1",
+      "hallId": "hall-sagar",
+      "slotId": "slot-sagar-morning",
+      "startDate": "2026-11-05",
+      "endDate": "2026-11-05",
+      "description": "Central HVAC duct inspection and acoustic panel calibration",
+      "reason": "Routine quarterly preventive maintenance",
+      "status": "SCHEDULED",
+      "createdBy": "Dakshina Kannada Venue Supervisor",
+      "createdAt": "2026-10-27T20:17:09.923Z"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "log-1",
+      "adminId": "admin-1",
+      "adminName": "District Reservation Officer",
+      "entityType": "Booking",
+      "entityId": "bk-1",
+      "action": "APPROVE",
+      "newValue": {
+        "status": "CONFIRMED",
+        "advancePaid": 875000
+      },
+      "createdAt": "2026-10-25T20:17:09.923Z"
+    }
+  ]
+}

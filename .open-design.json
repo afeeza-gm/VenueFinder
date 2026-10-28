@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "designSystem": {
+    "slug": "airbnb",
+    "path": "design-systems/airbnb"
+  },
+  "skill": {
+    "slug": "web-prototype",
+    "path": "design-templates/web-prototype",
+    "kind": "design-template",
+    "mode": "prototype"
+  },
+  "craft": [
+    "anti-ai-slop",
+    "typography",
+    "color",
+    "animation-discipline",
+    "accessibility-baseline",
+    "state-coverage"
+  ],
+  "boundAt": "2026-10-27T11:08:15Z"
+}

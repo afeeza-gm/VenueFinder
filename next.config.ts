@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
   turbopack: {
     rules: {
       "*.css": {
@@ -11,6 +8,18 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/venues/:id/assets/images/:file*',
+        destination: '/assets/images/:file*',
+      },
+      {
+        source: '/book/assets/images/:file*',
+        destination: '/assets/images/:file*',
+      },
+    ];
   },
 };
 
