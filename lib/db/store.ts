@@ -84,7 +84,17 @@ class MemoryStorage {
               ? Object.entries(data.settings)
               : INITIAL_SETTINGS.map((s) => [s.key, s.value])
           );
-          this.admins = data.admins || [...INITIAL_ADMINS];
+          this.admins = (data.admins && data.admins.length > 0)
+            ? data.admins.map((a: any) => {
+                if (!a.passwordHash || !a.passwordHash.startsWith('$2')) {
+                  const defaultMatch = INITIAL_ADMINS.find(
+                    (ia) => ia.email.toLowerCase() === a.email.toLowerCase()
+                  );
+                  return { ...a, passwordHash: defaultMatch ? defaultMatch.passwordHash : a.passwordHash };
+                }
+                return a;
+              })
+            : [...INITIAL_ADMINS];
           this.bookings = data.bookings || [...INITIAL_SAMPLE_BOOKINGS];
           this.payments = data.payments || [...INITIAL_PAYMENTS];
           this.refunds = data.refunds || [];
@@ -274,6 +284,25 @@ async function autoSeedMysqlIfEmpty() {
       }
 
       console.log('[MySQL] Auto-seed complete!');
+    } else {
+      // Ensure admins table is populated even if halls already existed
+      const adminRows = await query<{ count: number }>('SELECT COUNT(*) AS count FROM vf_admins');
+      if ((adminRows[0]?.count || 0) === 0) {
+        for (const a of INITIAL_ADMINS) {
+          await execute(
+            `INSERT IGNORE INTO vf_admins (id, name, email, password_hash, role) VALUES (?, ?, ?, ?, ?)`,
+            [a.id, a.name, a.email, a.passwordHash, a.role]
+          );
+        }
+      }
+    }
+
+    // Repair any corrupted or placeholder password hashes in vf_admins
+    for (const a of INITIAL_ADMINS) {
+      await execute(
+        `UPDATE vf_admins SET password_hash = ? WHERE email = ? AND (password_hash NOT LIKE '$2%')`,
+        [a.passwordHash, a.email]
+      );
     }
   } catch (seedErr) {
     console.error('[MySQL] Auto-seed encountered an issue:', seedErr);

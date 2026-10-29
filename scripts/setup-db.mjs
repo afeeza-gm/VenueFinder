@@ -261,8 +261,39 @@ async function main() {
     }
     console.log('✓ Tables & indexes verified.');
 
-    // 3. Check existing halls count
+    // 3. Check records & ensure admin accounts
     console.log('3. Checking records...');
+    const storagePath = path.join(process.cwd(), 'lib', 'db', 'storage.json');
+    let seed = null;
+    if (fs.existsSync(storagePath)) {
+      seed = JSON.parse(fs.readFileSync(storagePath, 'utf-8'));
+    }
+
+    // Always ensure admins exist in vf_admins
+    const [adminRows] = await dbConn.query('SELECT COUNT(*) AS count FROM vf_admins');
+    const adminCount = adminRows[0]?.count || 0;
+    if (adminCount === 0 && seed?.admins) {
+      console.log('Seeding admin accounts into vf_admins...');
+      for (const a of seed.admins) {
+        await dbConn.execute(
+          `INSERT IGNORE INTO vf_admins (id, name, email, password_hash, role) VALUES (?, ?, ?, ?, ?)`,
+          [a.id, a.name, a.email, a.passwordHash, a.role]
+        );
+      }
+    }
+
+    // Repair any placeholder or non-bcrypt password hashes in vf_admins
+    if (seed?.admins) {
+      for (const a of seed.admins) {
+        if (a.passwordHash && a.passwordHash.startsWith('$2')) {
+          await dbConn.execute(
+            `UPDATE vf_admins SET password_hash = ? WHERE email = ? AND (password_hash NOT LIKE '$2%')`,
+            [a.passwordHash, a.email]
+          );
+        }
+      }
+    }
+
     const [rows] = await dbConn.query('SELECT COUNT(*) AS count FROM vf_halls');
     const count = rows[0]?.count || 0;
 
@@ -270,9 +301,7 @@ async function main() {
       console.log(`Found ${count} venues in MySQL. Preserving existing data.`);
     } else {
       console.log('Database tables are empty. Seeding data from storage.json...');
-      const storagePath = path.join(process.cwd(), 'lib', 'db', 'storage.json');
-      if (fs.existsSync(storagePath)) {
-        const seed = JSON.parse(fs.readFileSync(storagePath, 'utf-8'));
+      if (seed) {
 
         // Admins
         if (seed.admins) {
