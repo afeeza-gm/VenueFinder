@@ -97,8 +97,33 @@ export async function initSchema(): Promise<void> {
 
   const pool = getPool();
 
+  // Migrate any existing un-prefixed tables to vf_* prefix
+  const oldTables = [
+    'halls', 'facilities', 'time_slots', 'bookings',
+    'payments', 'refunds', 'maintenance', 'admins',
+    'audit_logs', 'settings', 'webhook_events'
+  ];
+  for (const t of oldTables) {
+    try {
+      const [oldTbl] = await pool.query<any[]>(
+        `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+        [config.database, t]
+      );
+      const [newTbl] = await pool.query<any[]>(
+        `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+        [config.database, `vf_${t}`]
+      );
+      if (oldTbl && oldTbl.length > 0 && newTbl && newTbl.length === 0) {
+        console.log(`[MySQL] Migrating existing table \`${t}\` to \`vf_${t}\`...`);
+        await pool.query(`RENAME TABLE \`${t}\` TO \`vf_${t}\``);
+      }
+    } catch {
+      // Ignore migration errors
+    }
+  }
+
   const ddlStatements = [
-    `CREATE TABLE IF NOT EXISTS halls (
+    `CREATE TABLE IF NOT EXISTS vf_halls (
       id VARCHAR(191) PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
       location VARCHAR(255) NOT NULL DEFAULT 'Bengaluru',
@@ -112,25 +137,25 @@ export async function initSchema(): Promise<void> {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-    `CREATE TABLE IF NOT EXISTS facilities (
+    `CREATE TABLE IF NOT EXISTS vf_facilities (
       id VARCHAR(191) PRIMARY KEY,
       hall_id VARCHAR(191) NOT NULL,
       name VARCHAR(255) NOT NULL,
       description TEXT NULL,
-      INDEX idx_facilities_hall_id (hall_id)
+      INDEX idx_vf_facilities_hall_id (hall_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-    `CREATE TABLE IF NOT EXISTS time_slots (
+    `CREATE TABLE IF NOT EXISTS vf_time_slots (
       id VARCHAR(191) PRIMARY KEY,
       hall_id VARCHAR(191) NOT NULL,
       label VARCHAR(255) NOT NULL,
       start_time VARCHAR(20) NOT NULL,
       end_time VARCHAR(20) NOT NULL,
       base_price_paise INT NOT NULL,
-      INDEX idx_time_slots_hall_id (hall_id)
+      INDEX idx_vf_time_slots_hall_id (hall_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-    `CREATE TABLE IF NOT EXISTS bookings (
+    `CREATE TABLE IF NOT EXISTS vf_bookings (
       id VARCHAR(191) PRIMARY KEY,
       reference VARCHAR(100) UNIQUE NOT NULL,
       hall_id VARCHAR(191) NOT NULL,
@@ -151,13 +176,13 @@ export async function initSchema(): Promise<void> {
       active_slot_key VARCHAR(191) UNIQUE NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_bookings_phone (applicant_phone),
-      INDEX idx_bookings_event_date (event_date),
-      INDEX idx_bookings_hall_id (hall_id),
-      INDEX idx_bookings_slot_id (slot_id)
+      INDEX idx_vf_bookings_phone (applicant_phone),
+      INDEX idx_vf_bookings_event_date (event_date),
+      INDEX idx_vf_bookings_hall_id (hall_id),
+      INDEX idx_vf_bookings_slot_id (slot_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-    `CREATE TABLE IF NOT EXISTS payments (
+    `CREATE TABLE IF NOT EXISTS vf_payments (
       id VARCHAR(191) PRIMARY KEY,
       booking_id VARCHAR(191) NOT NULL,
       razorpay_order_id VARCHAR(191) UNIQUE NULL,
@@ -169,10 +194,10 @@ export async function initSchema(): Promise<void> {
       paid_at DATETIME NULL,
       raw_event JSON NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_payments_booking_id (booking_id)
+      INDEX idx_vf_payments_booking_id (booking_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-    `CREATE TABLE IF NOT EXISTS refunds (
+    `CREATE TABLE IF NOT EXISTS vf_refunds (
       id VARCHAR(191) PRIMARY KEY,
       payment_id VARCHAR(191) NOT NULL,
       razorpay_refund_id VARCHAR(191) UNIQUE NULL,
@@ -180,10 +205,10 @@ export async function initSchema(): Promise<void> {
       status VARCHAR(50) NOT NULL DEFAULT 'PROCESSED',
       reason TEXT NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_refunds_payment_id (payment_id)
+      INDEX idx_vf_refunds_payment_id (payment_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-    `CREATE TABLE IF NOT EXISTS maintenance (
+    `CREATE TABLE IF NOT EXISTS vf_maintenance (
       id VARCHAR(191) PRIMARY KEY,
       hall_id VARCHAR(191) NOT NULL,
       slot_id VARCHAR(191) NULL,
@@ -193,11 +218,11 @@ export async function initSchema(): Promise<void> {
       status VARCHAR(50) NOT NULL DEFAULT 'SCHEDULED',
       created_by VARCHAR(255) NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_maintenance_hall_id (hall_id),
-      INDEX idx_maintenance_slot_id (slot_id)
+      INDEX idx_vf_maintenance_hall_id (hall_id),
+      INDEX idx_vf_maintenance_slot_id (slot_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-    `CREATE TABLE IF NOT EXISTS admins (
+    `CREATE TABLE IF NOT EXISTS vf_admins (
       id VARCHAR(191) PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
       email VARCHAR(191) UNIQUE NOT NULL,
@@ -207,7 +232,7 @@ export async function initSchema(): Promise<void> {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-    `CREATE TABLE IF NOT EXISTS audit_logs (
+    `CREATE TABLE IF NOT EXISTS vf_audit_logs (
       id VARCHAR(191) PRIMARY KEY,
       admin_id VARCHAR(191) NULL,
       admin_name VARCHAR(255) NULL,
@@ -217,16 +242,16 @@ export async function initSchema(): Promise<void> {
       old_value JSON NULL,
       new_value JSON NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_audit_logs_admin_id (admin_id)
+      INDEX idx_vf_audit_logs_admin_id (admin_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-    `CREATE TABLE IF NOT EXISTS settings (
+    `CREATE TABLE IF NOT EXISTS vf_settings (
       \`key\` VARCHAR(191) PRIMARY KEY,
       value TEXT NOT NULL,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-    `CREATE TABLE IF NOT EXISTS webhook_events (
+    `CREATE TABLE IF NOT EXISTS vf_webhook_events (
       id VARCHAR(191) PRIMARY KEY,
       provider_event_id VARCHAR(191) UNIQUE NOT NULL,
       event_type VARCHAR(100) NOT NULL,

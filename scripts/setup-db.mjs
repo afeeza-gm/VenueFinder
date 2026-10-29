@@ -94,8 +94,33 @@ async function main() {
       dateStrings: true,
     });
 
+    // Migrate any existing un-prefixed tables to vf_* prefix
+    const oldTables = [
+      'halls', 'facilities', 'time_slots', 'bookings',
+      'payments', 'refunds', 'maintenance', 'admins',
+      'audit_logs', 'settings', 'webhook_events'
+    ];
+    for (const t of oldTables) {
+      try {
+        const [oldTbl] = await dbConn.query(
+          `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+          [config.database, t]
+        );
+        const [newTbl] = await dbConn.query(
+          `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+          [config.database, `vf_${t}`]
+        );
+        if (oldTbl.length > 0 && newTbl.length === 0) {
+          console.log(`Migrating existing table \`${t}\` to \`vf_${t}\`...`);
+          await dbConn.query(`RENAME TABLE \`${t}\` TO \`vf_${t}\``);
+        }
+      } catch {
+        // Ignore migration query errors
+      }
+    }
+
     const ddlStatements = [
-      `CREATE TABLE IF NOT EXISTS halls (
+      `CREATE TABLE IF NOT EXISTS vf_halls (
         id VARCHAR(191) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         location VARCHAR(255) NOT NULL DEFAULT 'Bengaluru',
@@ -109,25 +134,25 @@ async function main() {
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-      `CREATE TABLE IF NOT EXISTS facilities (
+      `CREATE TABLE IF NOT EXISTS vf_facilities (
         id VARCHAR(191) PRIMARY KEY,
         hall_id VARCHAR(191) NOT NULL,
         name VARCHAR(255) NOT NULL,
         description TEXT NULL,
-        INDEX idx_facilities_hall_id (hall_id)
+        INDEX idx_vf_facilities_hall_id (hall_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-      `CREATE TABLE IF NOT EXISTS time_slots (
+      `CREATE TABLE IF NOT EXISTS vf_time_slots (
         id VARCHAR(191) PRIMARY KEY,
         hall_id VARCHAR(191) NOT NULL,
         label VARCHAR(255) NOT NULL,
         start_time VARCHAR(20) NOT NULL,
         end_time VARCHAR(20) NOT NULL,
         base_price_paise INT NOT NULL,
-        INDEX idx_time_slots_hall_id (hall_id)
+        INDEX idx_vf_time_slots_hall_id (hall_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-      `CREATE TABLE IF NOT EXISTS bookings (
+      `CREATE TABLE IF NOT EXISTS vf_bookings (
         id VARCHAR(191) PRIMARY KEY,
         reference VARCHAR(100) UNIQUE NOT NULL,
         hall_id VARCHAR(191) NOT NULL,
@@ -148,13 +173,13 @@ async function main() {
         active_slot_key VARCHAR(191) UNIQUE NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_bookings_phone (applicant_phone),
-        INDEX idx_bookings_event_date (event_date),
-        INDEX idx_bookings_hall_id (hall_id),
-        INDEX idx_bookings_slot_id (slot_id)
+        INDEX idx_vf_bookings_phone (applicant_phone),
+        INDEX idx_vf_bookings_event_date (event_date),
+        INDEX idx_vf_bookings_hall_id (hall_id),
+        INDEX idx_vf_bookings_slot_id (slot_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-      `CREATE TABLE IF NOT EXISTS payments (
+      `CREATE TABLE IF NOT EXISTS vf_payments (
         id VARCHAR(191) PRIMARY KEY,
         booking_id VARCHAR(191) NOT NULL,
         razorpay_order_id VARCHAR(191) UNIQUE NULL,
@@ -166,10 +191,10 @@ async function main() {
         paid_at DATETIME NULL,
         raw_event JSON NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_payments_booking_id (booking_id)
+        INDEX idx_vf_payments_booking_id (booking_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-      `CREATE TABLE IF NOT EXISTS refunds (
+      `CREATE TABLE IF NOT EXISTS vf_refunds (
         id VARCHAR(191) PRIMARY KEY,
         payment_id VARCHAR(191) NOT NULL,
         razorpay_refund_id VARCHAR(191) UNIQUE NULL,
@@ -177,10 +202,10 @@ async function main() {
         status VARCHAR(50) NOT NULL DEFAULT 'PROCESSED',
         reason TEXT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_refunds_payment_id (payment_id)
+        INDEX idx_vf_refunds_payment_id (payment_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-      `CREATE TABLE IF NOT EXISTS maintenance (
+      `CREATE TABLE IF NOT EXISTS vf_maintenance (
         id VARCHAR(191) PRIMARY KEY,
         hall_id VARCHAR(191) NOT NULL,
         slot_id VARCHAR(191) NULL,
@@ -190,11 +215,11 @@ async function main() {
         status VARCHAR(50) NOT NULL DEFAULT 'SCHEDULED',
         created_by VARCHAR(255) NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_maintenance_hall_id (hall_id),
-        INDEX idx_maintenance_slot_id (slot_id)
+        INDEX idx_vf_maintenance_hall_id (hall_id),
+        INDEX idx_vf_maintenance_slot_id (slot_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-      `CREATE TABLE IF NOT EXISTS admins (
+      `CREATE TABLE IF NOT EXISTS vf_admins (
         id VARCHAR(191) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(191) UNIQUE NOT NULL,
@@ -204,7 +229,7 @@ async function main() {
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-      `CREATE TABLE IF NOT EXISTS audit_logs (
+      `CREATE TABLE IF NOT EXISTS vf_audit_logs (
         id VARCHAR(191) PRIMARY KEY,
         admin_id VARCHAR(191) NULL,
         admin_name VARCHAR(255) NULL,
@@ -214,16 +239,16 @@ async function main() {
         old_value JSON NULL,
         new_value JSON NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_audit_logs_admin_id (admin_id)
+        INDEX idx_vf_audit_logs_admin_id (admin_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-      `CREATE TABLE IF NOT EXISTS settings (
+      `CREATE TABLE IF NOT EXISTS vf_settings (
         \`key\` VARCHAR(191) PRIMARY KEY,
         value TEXT NOT NULL,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-      `CREATE TABLE IF NOT EXISTS webhook_events (
+      `CREATE TABLE IF NOT EXISTS vf_webhook_events (
         id VARCHAR(191) PRIMARY KEY,
         provider_event_id VARCHAR(191) UNIQUE NOT NULL,
         event_type VARCHAR(100) NOT NULL,
@@ -238,7 +263,7 @@ async function main() {
 
     // 3. Check existing halls count
     console.log('3. Checking records...');
-    const [rows] = await dbConn.query('SELECT COUNT(*) AS count FROM halls');
+    const [rows] = await dbConn.query('SELECT COUNT(*) AS count FROM vf_halls');
     const count = rows[0]?.count || 0;
 
     if (count > 0) {
@@ -253,7 +278,7 @@ async function main() {
         if (seed.admins) {
           for (const a of seed.admins) {
             await dbConn.execute(
-              `INSERT IGNORE INTO admins (id, name, email, password_hash, role) VALUES (?, ?, ?, ?, ?)`,
+              `INSERT IGNORE INTO vf_admins (id, name, email, password_hash, role) VALUES (?, ?, ?, ?, ?)`,
               [a.id, a.name, a.email, a.passwordHash, a.role]
             );
           }
@@ -263,7 +288,7 @@ async function main() {
         if (seed.settings) {
           for (const [k, v] of Object.entries(seed.settings)) {
             await dbConn.execute(
-              `INSERT IGNORE INTO settings (\`key\`, value) VALUES (?, ?)`,
+              `INSERT IGNORE INTO vf_settings (\`key\`, value) VALUES (?, ?)`,
               [k, String(v)]
             );
           }
@@ -273,7 +298,7 @@ async function main() {
         if (seed.halls) {
           for (const h of seed.halls) {
             await dbConn.execute(
-              `INSERT IGNORE INTO halls (id, name, location, address, capacity, description, rules, contact_phone, contact_email, image_url)
+              `INSERT IGNORE INTO vf_halls (id, name, location, address, capacity, description, rules, contact_phone, contact_email, image_url)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [h.id, h.name, h.location, h.address, h.capacity, h.description, h.rules, h.contactPhone, h.contactEmail, h.imageUrl || null]
             );
@@ -284,7 +309,7 @@ async function main() {
         if (seed.timeSlots) {
           for (const ts of seed.timeSlots) {
             await dbConn.execute(
-              `INSERT IGNORE INTO time_slots (id, hall_id, label, start_time, end_time, base_price_paise)
+              `INSERT IGNORE INTO vf_time_slots (id, hall_id, label, start_time, end_time, base_price_paise)
                VALUES (?, ?, ?, ?, ?, ?)`,
               [ts.id, ts.hallId, ts.label, ts.startTime, ts.endTime, ts.basePricePaise]
             );
@@ -295,7 +320,7 @@ async function main() {
         if (seed.facilities) {
           for (const f of seed.facilities) {
             await dbConn.execute(
-              `INSERT IGNORE INTO facilities (id, hall_id, name, description)
+              `INSERT IGNORE INTO vf_facilities (id, hall_id, name, description)
                VALUES (?, ?, ?, ?)`,
               [f.id, f.hallId, f.name, f.description || null]
             );
@@ -306,7 +331,7 @@ async function main() {
         if (seed.bookings) {
           for (const b of seed.bookings) {
             await dbConn.execute(
-              `INSERT IGNORE INTO bookings (
+              `INSERT IGNORE INTO vf_bookings (
                 id, reference, hall_id, slot_id, event_date, applicant_name, applicant_phone, applicant_email,
                 organisation, event_type, guest_count, notes, status, hold_expires_at, total_amount_paise,
                 advance_amount_paise, active_slot_key, created_at, updated_at
@@ -340,7 +365,7 @@ async function main() {
         if (seed.maintenance) {
           for (const m of seed.maintenance) {
             await dbConn.execute(
-              `INSERT IGNORE INTO maintenance (id, hall_id, slot_id, start_date, end_date, description, status, created_by, created_at)
+              `INSERT IGNORE INTO vf_maintenance (id, hall_id, slot_id, start_date, end_date, description, status, created_by, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                 m.id,

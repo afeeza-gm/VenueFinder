@@ -172,17 +172,17 @@ See Non-Goals. Actual policies, rules and data fields will be confirmed during t
 
 ## 10. Data Model (MySQL)
 
-- **`halls`**: `id`, `name`, `address`, `capacity`, `description`, `rules`, `contact_phone`, `contact_email`
-- **`facilities`**: `id`, `hall_id`, `name`, `description`
-- **`time_slots`**: `id`, `hall_id`, `label`, `start_time`, `end_time`, `base_price_paise`
-- **`bookings`**: `id`, `reference`, `hall_id`, `event_date`, `slot_id`, `applicant_name`, `applicant_phone`, `applicant_email`, `organisation`, `event_type`, `guest_count`, `notes`, `status`, `rejection_reason`, `hold_expires_at`, `total_amount_paise`, `advance_amount_paise`, `active_slot_key`, `created_at`, `updated_at`
-- **`payments`**: `id`, `booking_id`, `razorpay_order_id`, `razorpay_payment_id`, `amount_paise`, `currency`, `status`, `method`, `paid_at`, `raw_event`
-- **`refunds`**: `id`, `payment_id`, `razorpay_refund_id`, `amount_paise`, `status`, `reason`, `created_at`
-- **`maintenance`**: `id`, `hall_id`, `start_date`, `end_date`, `slot_id` (nullable), `description`, `status`
-- **`admins`**: `id`, `name`, `email`, `password_hash`, `role`, `last_login_at`
-- **`audit_logs`**: `id`, `admin_id`, `entity_type`, `entity_id`, `action`, `old_value`, `new_value`, `created_at`
-- **`webhook_events`**: `id`, `provider_event_id` (unique), `event_type`, `processed_at`
-- **`settings`**: `key`, `value` (advance percentage, hold window hours, cancellation rules)
+- **`vf_halls`**: `id`, `name`, `address`, `capacity`, `description`, `rules`, `contact_phone`, `contact_email`
+- **`vf_facilities`**: `id`, `hall_id`, `name`, `description`
+- **`vf_time_slots`**: `id`, `hall_id`, `label`, `start_time`, `end_time`, `base_price_paise`
+- **`vf_bookings`**: `id`, `reference`, `hall_id`, `event_date`, `slot_id`, `applicant_name`, `applicant_phone`, `applicant_email`, `organisation`, `event_type`, `guest_count`, `notes`, `status`, `rejection_reason`, `hold_expires_at`, `total_amount_paise`, `advance_amount_paise`, `active_slot_key`, `created_at`, `updated_at`
+- **`vf_payments`**: `id`, `booking_id`, `razorpay_order_id`, `razorpay_payment_id`, `amount_paise`, `currency`, `status`, `method`, `paid_at`, `raw_event`
+- **`vf_refunds`**: `id`, `payment_id`, `razorpay_refund_id`, `amount_paise`, `status`, `reason`, `created_at`
+- **`vf_maintenance`**: `id`, `hall_id`, `start_date`, `end_date`, `slot_id` (nullable), `description`, `status`
+- **`vf_admins`**: `id`, `name`, `email`, `password_hash`, `role`, `last_login_at`
+- **`vf_audit_logs`**: `id`, `admin_id`, `entity_type`, `entity_id`, `action`, `old_value`, `new_value`, `created_at`
+- **`vf_webhook_events`**: `id`, `provider_event_id` (unique), `event_type`, `processed_at`
+- **`vf_settings`**: `key`, `value` (advance percentage, hold window hours, cancellation rules)
 
 ### Double-Booking Prevention
 MySQL does not support partial unique indexes. We use `active_slot_key` (e.g., `CONCAT(hall_id, '_', event_date, '_', slot_id)`) populated only when status is in an active state (`APPROVED_AWAITING_PAYMENT`, `CONFIRMED`), and `NULL` otherwise, with a `UNIQUE` index. Combined with transactional execution, this provides hard database-level conflict prevention.

@@ -162,7 +162,7 @@ async function checkDbConnection(): Promise<boolean> {
 
 async function autoSeedMysqlIfEmpty() {
   try {
-    const rows = await query<{ count: number }>('SELECT COUNT(*) AS count FROM halls');
+    const rows = await query<{ count: number }>('SELECT COUNT(*) AS count FROM vf_halls');
     const hallCount = rows[0]?.count || 0;
 
     if (hallCount === 0) {
@@ -171,7 +171,7 @@ async function autoSeedMysqlIfEmpty() {
       // Seed Admins
       for (const a of INITIAL_ADMINS) {
         await execute(
-          `INSERT IGNORE INTO admins (id, name, email, password_hash, role) VALUES (?, ?, ?, ?, ?)`,
+          `INSERT IGNORE INTO vf_admins (id, name, email, password_hash, role) VALUES (?, ?, ?, ?, ?)`,
           [a.id, a.name, a.email, a.passwordHash, a.role]
         );
       }
@@ -179,7 +179,7 @@ async function autoSeedMysqlIfEmpty() {
       // Seed Settings
       for (const s of INITIAL_SETTINGS) {
         await execute(
-          `INSERT IGNORE INTO settings (\`key\`, value) VALUES (?, ?)`,
+          `INSERT IGNORE INTO vf_settings (\`key\`, value) VALUES (?, ?)`,
           [s.key, s.value]
         );
       }
@@ -187,7 +187,7 @@ async function autoSeedMysqlIfEmpty() {
       // Seed Halls
       for (const h of INITIAL_HALLS) {
         await execute(
-          `INSERT IGNORE INTO halls (id, name, location, address, capacity, description, rules, contact_phone, contact_email, image_url)
+          `INSERT IGNORE INTO vf_halls (id, name, location, address, capacity, description, rules, contact_phone, contact_email, image_url)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             h.id,
@@ -207,7 +207,7 @@ async function autoSeedMysqlIfEmpty() {
       // Seed TimeSlots
       for (const ts of INITIAL_TIME_SLOTS) {
         await execute(
-          `INSERT IGNORE INTO time_slots (id, hall_id, label, start_time, end_time, base_price_paise)
+          `INSERT IGNORE INTO vf_time_slots (id, hall_id, label, start_time, end_time, base_price_paise)
            VALUES (?, ?, ?, ?, ?, ?)`,
           [ts.id, ts.hallId, ts.label, ts.startTime, ts.endTime, ts.basePricePaise]
         );
@@ -216,7 +216,7 @@ async function autoSeedMysqlIfEmpty() {
       // Seed Facilities
       for (const f of INITIAL_FACILITIES) {
         await execute(
-          `INSERT IGNORE INTO facilities (id, hall_id, name, description)
+          `INSERT IGNORE INTO vf_facilities (id, hall_id, name, description)
            VALUES (?, ?, ?, ?)`,
           [f.id, f.hallId, f.name, f.description || null]
         );
@@ -225,7 +225,7 @@ async function autoSeedMysqlIfEmpty() {
       // Seed Sample Bookings
       for (const b of INITIAL_SAMPLE_BOOKINGS) {
         await execute(
-          `INSERT IGNORE INTO bookings (
+          `INSERT IGNORE INTO vf_bookings (
             id, reference, hall_id, slot_id, event_date, applicant_name, applicant_phone, applicant_email,
             organisation, event_type, guest_count, notes, status, hold_expires_at, total_amount_paise,
             advance_amount_paise, active_slot_key, created_at, updated_at
@@ -257,7 +257,7 @@ async function autoSeedMysqlIfEmpty() {
       // Seed Maintenance
       for (const m of INITIAL_MAINTENANCE) {
         await execute(
-          `INSERT IGNORE INTO maintenance (id, hall_id, slot_id, start_date, end_date, description, status, created_by, created_at)
+          `INSERT IGNORE INTO vf_maintenance (id, hall_id, slot_id, start_date, end_date, description, status, created_by, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             m.id,
@@ -349,7 +349,7 @@ export const dbService = {
             h.contact_phone AS contactPhone,
             h.contact_email AS contactEmail,
             h.image_url AS imageUrl
-          FROM halls h
+          FROM vf_halls h
           WHERE ${whereClauses.join(' AND ')}
           ORDER BY h.name ASC
         `;
@@ -361,13 +361,13 @@ export const dbService = {
           const placeholders = hallIds.map(() => '?').join(',');
 
           const allFacilities = await query<any>(
-            `SELECT id, hall_id AS hallId, name, description FROM facilities WHERE hall_id IN (${placeholders})`,
+            `SELECT id, hall_id AS hallId, name, description FROM vf_facilities WHERE hall_id IN (${placeholders})`,
             hallIds
           );
 
           const allSlots = await query<any>(
             `SELECT id, hall_id AS hallId, label, start_time AS startTime, end_time AS endTime, base_price_paise AS basePricePaise
-             FROM time_slots WHERE hall_id IN (${placeholders}) ORDER BY start_time ASC`,
+             FROM vf_time_slots WHERE hall_id IN (${placeholders}) ORDER BY start_time ASC`,
             hallIds
           );
 
@@ -420,7 +420,7 @@ export const dbService = {
     if (isDb) {
       try {
         const rows = await query<{ location: string }>(
-          `SELECT DISTINCT location FROM halls WHERE location IS NOT NULL AND location != '' ORDER BY location ASC`
+          `SELECT DISTINCT location FROM vf_halls WHERE location IS NOT NULL AND location != '' ORDER BY location ASC`
         );
         if (rows.length > 0) {
           return rows.map((r) => r.location);
@@ -446,7 +446,7 @@ export const dbService = {
             contact_phone AS contactPhone,
             contact_email AS contactEmail,
             image_url AS imageUrl
-          FROM halls
+          FROM vf_halls
         `;
         const params: any[] = [];
         if (id) {
@@ -460,12 +460,12 @@ export const dbService = {
         if (halls.length > 0) {
           const h = halls[0];
           const facilities = await query<any>(
-            `SELECT id, hall_id AS hallId, name, description FROM facilities WHERE hall_id = ?`,
+            `SELECT id, hall_id AS hallId, name, description FROM vf_facilities WHERE hall_id = ?`,
             [h.id]
           );
           const timeSlots = await query<any>(
             `SELECT id, hall_id AS hallId, label, start_time AS startTime, end_time AS endTime, base_price_paise AS basePricePaise
-             FROM time_slots WHERE hall_id = ? ORDER BY start_time ASC`,
+             FROM vf_time_slots WHERE hall_id = ? ORDER BY start_time ASC`,
             [h.id]
           );
           return {
@@ -517,7 +517,7 @@ export const dbService = {
     if (isDb) {
       try {
         await execute(
-          `INSERT INTO halls (id, name, location, address, capacity, description, rules, contact_phone, contact_email, image_url)
+          `INSERT INTO vf_halls (id, name, location, address, capacity, description, rules, contact_phone, contact_email, image_url)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             hallId,
@@ -539,7 +539,7 @@ export const dbService = {
             const f = data.facilities[i];
             const facId = `fac-${hallId}-${i + 1}`;
             await execute(
-              `INSERT INTO facilities (id, hall_id, name, description) VALUES (?, ?, ?, ?)`,
+              `INSERT INTO vf_facilities (id, hall_id, name, description) VALUES (?, ?, ?, ?)`,
               [facId, hallId, f.name, f.description || null]
             );
             createdFacilities.push({
@@ -557,7 +557,7 @@ export const dbService = {
             const s = data.timeSlots[i];
             const slotId = `slot-${hallId}-${i + 1}`;
             await execute(
-              `INSERT INTO time_slots (id, hall_id, label, start_time, end_time, base_price_paise) VALUES (?, ?, ?, ?, ?, ?)`,
+              `INSERT INTO vf_time_slots (id, hall_id, label, start_time, end_time, base_price_paise) VALUES (?, ?, ?, ?, ?, ?)`,
               [slotId, hallId, s.label, s.startTime, s.endTime, s.basePricePaise]
             );
             createdSlots.push({
@@ -573,7 +573,7 @@ export const dbService = {
 
         // Audit Log
         await execute(
-          `INSERT INTO audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [`log-${Date.now()}`, adminId, adminName, 'Hall', hallId, 'CREATE_HALL', JSON.stringify(data)]
         ).catch(() => {});
@@ -696,10 +696,10 @@ export const dbService = {
 
         if (fields.length > 0) {
           params.push(id);
-          await execute(`UPDATE halls SET ${fields.join(', ')} WHERE id = ?`, params);
+          await execute(`UPDATE vf_halls SET ${fields.join(', ')} WHERE id = ?`, params);
 
           await execute(
-            `INSERT INTO audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+            `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [`log-${Date.now()}`, adminId || null, adminName || null, 'Hall', id, 'UPDATE_HALL', JSON.stringify(data)]
           ).catch(() => {});
@@ -740,12 +740,12 @@ export const dbService = {
     const isDb = await checkDbConnection();
     if (isDb) {
       try {
-        await execute('DELETE FROM facilities WHERE hall_id = ?', [id]);
-        await execute('DELETE FROM time_slots WHERE hall_id = ?', [id]);
-        await execute('DELETE FROM halls WHERE id = ?', [id]);
+        await execute('DELETE FROM vf_facilities WHERE hall_id = ?', [id]);
+        await execute('DELETE FROM vf_time_slots WHERE hall_id = ?', [id]);
+        await execute('DELETE FROM vf_halls WHERE id = ?', [id]);
 
         await execute(
-          `INSERT INTO audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [`log-${Date.now()}`, adminId || null, adminName || null, 'Hall', id, 'DELETE_HALL', JSON.stringify({ deletedHallId: id })]
         ).catch(() => {});
@@ -787,7 +787,7 @@ export const dbService = {
           SELECT 
             id, hall_id AS hallId, label, start_time AS startTime, end_time AS endTime,
             base_price_paise AS basePricePaise
-          FROM time_slots
+          FROM vf_time_slots
         `;
         const params: any[] = [];
         if (hallId) {
@@ -815,18 +815,18 @@ export const dbService = {
       try {
         const slots = await query<TimeSlot>(
           `SELECT id, hall_id AS hallId, label, start_time AS startTime, end_time AS endTime, base_price_paise AS basePricePaise
-           FROM time_slots WHERE hall_id = ? ORDER BY start_time ASC`,
+           FROM vf_time_slots WHERE hall_id = ? ORDER BY start_time ASC`,
           [effectiveHallId]
         );
 
         const bookings = await query<{ slotId: string; status: string }>(
-          `SELECT slot_id AS slotId, status FROM bookings
+          `SELECT slot_id AS slotId, status FROM vf_bookings
            WHERE hall_id = ? AND event_date = ? AND status IN ('APPROVED_AWAITING_PAYMENT', 'CONFIRMED')`,
           [effectiveHallId, dateStr]
         );
 
         const maintenance = await query<{ slotId: string | null; status: string }>(
-          `SELECT slot_id AS slotId, status FROM maintenance
+          `SELECT slot_id AS slotId, status FROM vf_maintenance
            WHERE hall_id = ? AND start_date <= ? AND end_date >= ? AND status IN ('SCHEDULED', 'IN_PROGRESS')`,
           [effectiveHallId, dateStr, dateStr]
         );
@@ -1003,7 +1003,7 @@ export const dbService = {
     if (isDb) {
       try {
         await execute(
-          `INSERT INTO bookings (
+          `INSERT INTO vf_bookings (
             id, reference, hall_id, slot_id, event_date, applicant_name, applicant_phone, applicant_email,
             organisation, event_type, guest_count, notes, status, total_amount_paise, advance_amount_paise,
             created_at, updated_at
@@ -1099,7 +1099,7 @@ export const dbService = {
             b.total_amount_paise AS totalAmountPaise, b.advance_amount_paise AS advanceAmountPaise,
             b.active_slot_key AS activeSlotKey,
             b.created_at AS createdAt, b.updated_at AS updatedAt
-          FROM bookings b
+          FROM vf_bookings b
           WHERE UPPER(TRIM(b.reference)) = UPPER(TRIM(?))
         `;
         const params: any[] = [reference];
@@ -1191,7 +1191,7 @@ export const dbService = {
             b.total_amount_paise AS totalAmountPaise, b.advance_amount_paise AS advanceAmountPaise,
             b.active_slot_key AS activeSlotKey,
             b.created_at AS createdAt, b.updated_at AS updatedAt
-          FROM bookings b
+          FROM vf_bookings b
           WHERE ${whereClauses.join(' AND ')}
           ORDER BY b.created_at DESC
         `;
@@ -1248,7 +1248,7 @@ export const dbService = {
 
     if (isDb) {
       try {
-        const rows = await query<any>(`SELECT * FROM bookings WHERE id = ?`, [bookingId]);
+        const rows = await query<any>(`SELECT * FROM vf_bookings WHERE id = ?`, [bookingId]);
         if (rows.length === 0) return { success: false, error: 'Booking not found' };
 
         const b = rows[0];
@@ -1257,7 +1257,7 @@ export const dbService = {
 
         // Verify slot lock
         const conflicts = await query<any>(
-          `SELECT id FROM bookings WHERE id != ? AND active_slot_key = ?`,
+          `SELECT id FROM vf_bookings WHERE id != ? AND active_slot_key = ?`,
           [bookingId, activeKey]
         );
 
@@ -1266,12 +1266,12 @@ export const dbService = {
         }
 
         await execute(
-          `UPDATE bookings SET status = 'APPROVED_AWAITING_PAYMENT', active_slot_key = ?, hold_expires_at = ?, updated_at = NOW() WHERE id = ?`,
+          `UPDATE vf_bookings SET status = 'APPROVED_AWAITING_PAYMENT', active_slot_key = ?, hold_expires_at = ?, updated_at = NOW() WHERE id = ?`,
           [activeKey, holdExpiresAt, bookingId]
         );
 
         await execute(
-          `INSERT INTO audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [`log-${Date.now()}`, adminId || null, adminName || null, 'Booking', bookingId, 'APPROVE', JSON.stringify({ status: 'APPROVED_AWAITING_PAYMENT', holdExpiresAt })]
         ).catch(() => {});
@@ -1328,16 +1328,16 @@ export const dbService = {
     const isDb = await checkDbConnection();
     if (isDb) {
       try {
-        const rows = await query<any>(`SELECT reference FROM bookings WHERE id = ?`, [bookingId]);
+        const rows = await query<any>(`SELECT reference FROM vf_bookings WHERE id = ?`, [bookingId]);
         if (rows.length === 0) return { success: false, error: 'Booking not found' };
 
         await execute(
-          `UPDATE bookings SET status = 'REJECTED', rejection_reason = ?, active_slot_key = NULL, hold_expires_at = NULL, updated_at = NOW() WHERE id = ?`,
+          `UPDATE vf_bookings SET status = 'REJECTED', rejection_reason = ?, active_slot_key = NULL, hold_expires_at = NULL, updated_at = NOW() WHERE id = ?`,
           [reason, bookingId]
         );
 
         await execute(
-          `INSERT INTO audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [`log-${Date.now()}`, adminId || null, adminName || null, 'Booking', bookingId, 'REJECT', JSON.stringify({ reason })]
         ).catch(() => {});
@@ -1417,7 +1417,7 @@ export const dbService = {
     if (isDb) {
       try {
         const conflict = await query<any>(
-          `SELECT id FROM bookings WHERE active_slot_key = ?`,
+          `SELECT id FROM vf_bookings WHERE active_slot_key = ?`,
           [activeKey]
         );
 
@@ -1425,7 +1425,7 @@ export const dbService = {
           return { success: false, error: 'Slot is already locked on this date.' };
         }
 
-        const slotRows = await query<any>(`SELECT base_price_paise FROM time_slots WHERE id = ?`, [formData.slotId]);
+        const slotRows = await query<any>(`SELECT base_price_paise FROM vf_time_slots WHERE id = ?`, [formData.slotId]);
         const totalAmount = slotRows[0]?.base_price_paise || 2000000;
         const advanceAmount = Math.round(totalAmount * 0.25);
         const reference = `MAN-${formData.eventDate.replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`;
@@ -1434,7 +1434,7 @@ export const dbService = {
         const status = formData.markAsPaid ? 'CONFIRMED' : 'APPROVED_AWAITING_PAYMENT';
 
         await execute(
-          `INSERT INTO bookings (
+          `INSERT INTO vf_bookings (
             id, reference, hall_id, slot_id, event_date, applicant_name, applicant_phone, applicant_email,
             organisation, event_type, guest_count, notes, status, active_slot_key, hold_expires_at,
             total_amount_paise, advance_amount_paise, created_at, updated_at
@@ -1462,7 +1462,7 @@ export const dbService = {
 
         if (formData.markAsPaid) {
           await execute(
-            `INSERT INTO payments (id, booking_id, amount_paise, currency, status, method, paid_at, created_at)
+            `INSERT INTO vf_payments (id, booking_id, amount_paise, currency, status, method, paid_at, created_at)
              VALUES (?, ?, ?, 'INR', 'PAID', ?, NOW(), NOW())`,
             [
               `pay-${Date.now()}`,
@@ -1474,7 +1474,7 @@ export const dbService = {
         }
 
         await execute(
-          `INSERT INTO audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [`log-${Date.now()}`, adminId, adminName, 'Booking', newId, 'MANUAL_BOOKING', JSON.stringify({ reference, status, totalAmount })]
         ).catch(() => {});
@@ -1554,7 +1554,7 @@ export const dbService = {
 
     if (isDb) {
       try {
-        const rows = await query<any>(`SELECT * FROM bookings WHERE id = ?`, [data.bookingId]);
+        const rows = await query<any>(`SELECT * FROM vf_bookings WHERE id = ?`, [data.bookingId]);
         if (rows.length === 0) return { success: false, error: 'Booking not found' };
 
         const b = rows[0];
@@ -1562,12 +1562,12 @@ export const dbService = {
         const activeKey = `${b.hall_id}_${eventDateStr}_${b.slot_id}`;
 
         await execute(
-          `UPDATE bookings SET status = 'CONFIRMED', active_slot_key = ?, hold_expires_at = NULL, updated_at = NOW() WHERE id = ?`,
+          `UPDATE vf_bookings SET status = 'CONFIRMED', active_slot_key = ?, hold_expires_at = NULL, updated_at = NOW() WHERE id = ?`,
           [activeKey, data.bookingId]
         );
 
         await execute(
-          `INSERT INTO payments (id, booking_id, razorpay_order_id, razorpay_payment_id, amount_paise, currency, status, method, paid_at, raw_event, created_at)
+          `INSERT INTO vf_payments (id, booking_id, razorpay_order_id, razorpay_payment_id, amount_paise, currency, status, method, paid_at, raw_event, created_at)
            VALUES (?, ?, ?, ?, ?, 'INR', 'PAID', ?, NOW(), ?, NOW())`,
           [
             `pay-${Date.now()}`,
@@ -1627,7 +1627,7 @@ export const dbService = {
 
     if (isDb) {
       try {
-        const rows = await query<any>(`SELECT * FROM bookings WHERE id = ?`, [bookingId]);
+        const rows = await query<any>(`SELECT * FROM vf_bookings WHERE id = ?`, [bookingId]);
         if (rows.length === 0) return { success: false, error: 'Booking not found' };
 
         const b = rows[0];
@@ -1650,12 +1650,12 @@ export const dbService = {
         const eligibleRefundPaise = Math.round((b.advance_amount_paise * refundPercentage) / 100);
 
         await execute(
-          `UPDATE bookings SET status = 'CANCELLED', active_slot_key = NULL, hold_expires_at = NULL, updated_at = NOW() WHERE id = ?`,
+          `UPDATE vf_bookings SET status = 'CANCELLED', active_slot_key = NULL, hold_expires_at = NULL, updated_at = NOW() WHERE id = ?`,
           [bookingId]
         );
 
         await execute(
-          `INSERT INTO audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             `log-${Date.now()}`,
@@ -1746,20 +1746,20 @@ export const dbService = {
       try {
         let pId = paymentId;
         if (!pId && typeof paymentIdOrData === 'object' && paymentIdOrData.bookingId) {
-          const pays = await query<any>(`SELECT id FROM payments WHERE booking_id = ? LIMIT 1`, [paymentIdOrData.bookingId]);
+          const pays = await query<any>(`SELECT id FROM vf_payments WHERE booking_id = ? LIMIT 1`, [paymentIdOrData.bookingId]);
           if (pays.length > 0) pId = pays[0].id;
         }
 
         if (pId) {
           const refundId = `ref-${Date.now()}`;
           await execute(
-            `INSERT INTO refunds (id, payment_id, amount_paise, status, reason, created_at)
+            `INSERT INTO vf_refunds (id, payment_id, amount_paise, status, reason, created_at)
              VALUES (?, ?, ?, 'PROCESSED', ?, NOW())`,
             [refundId, pId, effectiveAmount, effectiveReason]
           );
 
           await execute(
-            `INSERT INTO audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+            `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [`log-${Date.now()}`, adminId || null, adminName || null, 'Refund', refundId, 'REFUND', JSON.stringify({ paymentId: pId, amountPaise: effectiveAmount, reason: effectiveReason })]
           ).catch(() => {});
@@ -1806,7 +1806,7 @@ export const dbService = {
             start_date AS startDate, end_date AS endDate,
             description, status, created_by AS createdBy,
             created_at AS createdAt
-          FROM maintenance
+          FROM vf_maintenance
         `;
         const params: any[] = [];
         if (hallId) {
@@ -1853,7 +1853,7 @@ export const dbService = {
       try {
         const maintId = `maint-${Date.now()}`;
         await execute(
-          `INSERT INTO maintenance (id, hall_id, slot_id, start_date, end_date, description, status, created_by, created_at)
+          `INSERT INTO vf_maintenance (id, hall_id, slot_id, start_date, end_date, description, status, created_by, created_at)
            VALUES (?, ?, ?, ?, ?, ?, 'SCHEDULED', ?, NOW())`,
           [
             maintId,
@@ -1867,7 +1867,7 @@ export const dbService = {
         );
 
         await execute(
-          `INSERT INTO audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [`log-${Date.now()}`, adminId || null, adminName || null, 'Maintenance', maintId, 'CREATE_MAINTENANCE', JSON.stringify(formData)]
         ).catch(() => {});
@@ -1917,7 +1917,7 @@ export const dbService = {
     if (isDb) {
       try {
         const res = await execute(
-          `UPDATE bookings
+          `UPDATE vf_bookings
            SET status = 'EXPIRED', active_slot_key = NULL, updated_at = NOW()
            WHERE status = 'APPROVED_AWAITING_PAYMENT' AND hold_expires_at <= NOW()`
         );
@@ -1958,7 +1958,7 @@ export const dbService = {
             entity_type AS entityType, entity_id AS entityId,
             action, old_value AS oldValue, new_value AS newValue,
             created_at AS createdAt
-          FROM audit_logs
+          FROM vf_audit_logs
           ORDER BY created_at DESC
           LIMIT 100`
         );
@@ -1981,7 +1981,7 @@ export const dbService = {
     if (isDb) {
       try {
         const rows = await query<{ key: string; value: string }>(
-          `SELECT \`key\`, value FROM settings`
+          `SELECT \`key\`, value FROM vf_settings`
         );
         if (rows.length > 0) {
           return rows.map((r, idx) => ({
@@ -2007,7 +2007,7 @@ export const dbService = {
     if (isDb) {
       try {
         await execute(
-          `INSERT INTO settings (\`key\`, value, updated_at) VALUES (?, ?, NOW())
+          `INSERT INTO vf_settings (\`key\`, value, updated_at) VALUES (?, ?, NOW())
            ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()`,
           [key, value]
         );
@@ -2027,7 +2027,7 @@ export const dbService = {
         const rows = await query<any>(
           `SELECT id, name, email, role, password_hash AS passwordHash,
                   last_login_at AS lastLoginAt, created_at AS createdAt
-           FROM admins
+           FROM vf_admins
            WHERE LOWER(TRIM(email)) = LOWER(TRIM(?))
            LIMIT 1`,
           [email]
