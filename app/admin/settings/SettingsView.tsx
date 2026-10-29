@@ -29,12 +29,20 @@ export default function SettingsView({ hall, settings }: SettingsViewProps) {
   const [contactPhone, setContactPhone] = useState(hall.contactPhone);
   const [contactEmail, setContactEmail] = useState(hall.contactEmail);
 
-  // Settings Map
-  const settingsMap = new Map(settings.map((s) => [s.key, s.value]));
-  const [advancePercent, setAdvancePercent] = useState(settingsMap.get('advance_percentage') || '50');
-  const [holdHours, setHoldHours] = useState(settingsMap.get('hold_window_hours') || '48');
-  const [fullRefundDays, setFullRefundDays] = useState(settingsMap.get('cancellation_full_refund_days') || '7');
-  const [partialRefundDays, setPartialRefundDays] = useState(settingsMap.get('cancellation_partial_refund_days') || '3');
+  // Settings Map with case-insensitive support
+  const settingsMap = new Map(settings.map((s) => [s.key.toUpperCase(), s.value]));
+  const [advancePercent, setAdvancePercent] = useState(
+    settingsMap.get('ADVANCE_PERCENTAGE') || settingsMap.get('ADVANCE_PERCENT') || '25'
+  );
+  const [holdHours, setHoldHours] = useState(
+    settingsMap.get('HOLD_HOURS') || settingsMap.get('HOLD_WINDOW_HOURS') || '48'
+  );
+  const [fullRefundDays, setFullRefundDays] = useState(
+    settingsMap.get('CANCELLATION_FULL_DAYS') || settingsMap.get('CANCELLATION_FULL_REFUND_DAYS') || '7'
+  );
+  const [partialRefundDays, setPartialRefundDays] = useState(
+    settingsMap.get('CANCELLATION_PARTIAL_DAYS') || settingsMap.get('CANCELLATION_PARTIAL_REFUND_DAYS') || '3'
+  );
 
   const [savingHall, setSavingHall] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -68,9 +76,13 @@ export default function SettingsView({ hall, settings }: SettingsViewProps) {
     setSettingsMsg(null);
 
     await Promise.all([
+      updateSettingAction('ADVANCE_PERCENTAGE', advancePercent),
       updateSettingAction('advance_percentage', advancePercent),
+      updateSettingAction('HOLD_HOURS', holdHours),
       updateSettingAction('hold_window_hours', holdHours),
+      updateSettingAction('CANCELLATION_FULL_DAYS', fullRefundDays),
       updateSettingAction('cancellation_full_refund_days', fullRefundDays),
+      updateSettingAction('CANCELLATION_PARTIAL_DAYS', partialRefundDays),
       updateSettingAction('cancellation_partial_refund_days', partialRefundDays),
     ]);
 
@@ -208,7 +220,8 @@ export default function SettingsView({ hall, settings }: SettingsViewProps) {
               </label>
               <input
                 type="number"
-                min={10}
+                step="any"
+                min={0}
                 max={100}
                 value={advancePercent}
                 onChange={(e) => setAdvancePercent(e.target.value)}

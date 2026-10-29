@@ -21,6 +21,8 @@ import {
   Admin,
   AuditLog,
   Setting,
+  PaymentStatus,
+  BookingStatus,
 } from '@/types';
 
 const STORAGE_FILE = path.join(process.cwd(), 'lib', 'db', 'storage.json');
@@ -703,10 +705,18 @@ export const dbService = {
       contactPhone?: string;
       contactEmail?: string;
       imageUrl?: string;
+      facilities?: Array<{ id?: string; name: string; description?: string | null }>;
+      timeSlots?: Array<{
+        id?: string;
+        label: string;
+        startTime: string;
+        endTime: string;
+        basePricePaise: number;
+      }>;
     },
     adminId?: string,
     adminName?: string
-  ): Promise<Hall | null> {
+  ): Promise<(Hall & { facilities: Facility[]; timeSlots: TimeSlot[] }) | null> {
     const isDb = await checkDbConnection();
     if (isDb) {
       try {
@@ -726,13 +736,39 @@ export const dbService = {
         if (fields.length > 0) {
           params.push(id);
           await execute(`UPDATE vf_halls SET ${fields.join(', ')} WHERE id = ?`, params);
-
-          await execute(
-            `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [`log-${Date.now()}`, adminId || null, adminName || null, 'Hall', id, 'UPDATE_HALL', JSON.stringify(data)]
-          ).catch(() => {});
         }
+
+        // Persist updated facilities
+        if (data.facilities !== undefined) {
+          await execute('DELETE FROM vf_facilities WHERE hall_id = ?', [id]);
+          for (let i = 0; i < data.facilities.length; i++) {
+            const f = data.facilities[i];
+            const facId = f.id && !f.id.startsWith('fac-new-') ? f.id : `fac-${id}-${i + 1}`;
+            await execute(
+              `INSERT INTO vf_facilities (id, hall_id, name, description) VALUES (?, ?, ?, ?)`,
+              [facId, id, f.name, f.description || null]
+            );
+          }
+        }
+
+        // Persist updated time slots & tariffs
+        if (data.timeSlots !== undefined) {
+          await execute('DELETE FROM vf_time_slots WHERE hall_id = ?', [id]);
+          for (let i = 0; i < data.timeSlots.length; i++) {
+            const s = data.timeSlots[i];
+            const slotId = s.id && !s.id.startsWith('slot-new-') ? s.id : `slot-${id}-${i + 1}`;
+            await execute(
+              `INSERT INTO vf_time_slots (id, hall_id, label, start_time, end_time, base_price_paise) VALUES (?, ?, ?, ?, ?, ?)`,
+              [slotId, id, s.label, s.startTime, s.endTime, s.basePricePaise]
+            );
+          }
+        }
+
+        await execute(
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [`log-${Date.now()}`, adminId || null, adminName || null, 'Hall', id, 'UPDATE_HALL', JSON.stringify(data)]
+        ).catch(() => {});
 
         const updated = await this.getHall(id);
         return updated;
@@ -746,8 +782,44 @@ export const dbService = {
 
     mem.halls[idx] = {
       ...mem.halls[idx],
-      ...data,
+      name: data.name !== undefined ? data.name : mem.halls[idx].name,
+      location: data.location !== undefined ? data.location : mem.halls[idx].location,
+      address: data.address !== undefined ? data.address : mem.halls[idx].address,
+      capacity: data.capacity !== undefined ? data.capacity : mem.halls[idx].capacity,
+      description: data.description !== undefined ? data.description : mem.halls[idx].description,
+      rules: data.rules !== undefined ? data.rules : mem.halls[idx].rules,
+      contactPhone: data.contactPhone !== undefined ? data.contactPhone : mem.halls[idx].contactPhone,
+      contactEmail: data.contactEmail !== undefined ? data.contactEmail : mem.halls[idx].contactEmail,
+      imageUrl: data.imageUrl !== undefined ? data.imageUrl : mem.halls[idx].imageUrl,
     };
+
+    if (data.facilities !== undefined) {
+      mem.facilities = mem.facilities.filter((f) => f.hallId !== id);
+      data.facilities.forEach((f, i) => {
+        const facId = f.id && !f.id.startsWith('fac-new-') ? f.id : `fac-${id}-${i + 1}`;
+        mem.facilities.push({
+          id: facId,
+          hallId: id,
+          name: f.name,
+          description: f.description || null,
+        });
+      });
+    }
+
+    if (data.timeSlots !== undefined) {
+      mem.timeSlots = mem.timeSlots.filter((s) => s.hallId !== id);
+      data.timeSlots.forEach((s, i) => {
+        const slotId = s.id && !s.id.startsWith('slot-new-') ? s.id : `slot-${id}-${i + 1}`;
+        mem.timeSlots.push({
+          id: slotId,
+          hallId: id,
+          label: s.label,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          basePricePaise: s.basePricePaise,
+        });
+      });
+    }
 
     mem.auditLogs.push({
       id: `log-${Date.now()}`,
@@ -761,7 +833,11 @@ export const dbService = {
     });
 
     mem.save();
-    return mem.halls[idx];
+    return {
+      ...mem.halls[idx],
+      facilities: mem.facilities.filter((f) => f.hallId === id),
+      timeSlots: mem.timeSlots.filter((s) => s.hallId === id),
+    };
   },
 
   // Delete a Hall
@@ -1562,8 +1638,10 @@ export const dbService = {
         const advanceAmount = Math.round(totalAmount * 0.25);
         const reference = `MAN-${formData.eventDate.replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`;
         const newId = `bk-${Date.now()}`;
-        const holdExpiresAt = formData.markAsPaid ? null : new Date(Date.now() + 48 * 3600000);
-        const status = formData.markAsPaid ? 'CONFIRMED' : 'APPROVED_AWAITING_PAYMENT';
+        const isPaid = Boolean(formData.markAsPaid || (formData.amountCollectedPaise !== undefined && formData.amountCollectedPaise > 0));
+        const collectedAmount = isPaid ? (formData.amountCollectedPaise !== undefined && formData.amountCollectedPaise > 0 ? formData.amountCollectedPaise : advanceAmount) : advanceAmount;
+        const holdExpiresAt = isPaid ? null : new Date(Date.now() + 48 * 3600000);
+        const status = isPaid ? 'CONFIRMED' : 'APPROVED_AWAITING_PAYMENT';
 
         await execute(
           `INSERT INTO vf_bookings (
@@ -1588,18 +1666,18 @@ export const dbService = {
             activeKey,
             holdExpiresAt,
             totalAmount,
-            advanceAmount,
+            collectedAmount,
           ]
         );
 
-        if (formData.markAsPaid) {
+        if (isPaid) {
           await execute(
             `INSERT INTO vf_payments (id, booking_id, amount_paise, currency, status, method, paid_at, created_at)
              VALUES (?, ?, ?, 'INR', 'PAID', ?, NOW(), NOW())`,
             [
               `pay-${Date.now()}`,
               newId,
-              formData.amountCollectedPaise || advanceAmount,
+              collectedAmount,
               formData.paymentMethod || 'CASH_OFFLINE',
             ]
           );
@@ -1608,7 +1686,7 @@ export const dbService = {
         await execute(
           `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [`log-${Date.now()}`, adminId, adminName, 'Booking', newId, 'MANUAL_BOOKING', JSON.stringify({ reference, status, totalAmount })]
+          [`log-${Date.now()}`, adminId, adminName, 'Booking', newId, 'MANUAL_BOOKING', JSON.stringify({ reference, status, totalAmount, advancePaid: isPaid ? collectedAmount : 0 })]
         ).catch(() => {});
 
         const created = await this.getBookingByReference(reference);
@@ -1631,6 +1709,8 @@ export const dbService = {
     const totalAmount = slot?.basePricePaise || 2000000;
     const advanceAmount = Math.round(totalAmount * 0.25);
     const reference = `MAN-${formData.eventDate.replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`;
+    const isPaid = Boolean(formData.markAsPaid || (formData.amountCollectedPaise !== undefined && formData.amountCollectedPaise > 0));
+    const collectedAmount = isPaid ? (formData.amountCollectedPaise !== undefined && formData.amountCollectedPaise > 0 ? formData.amountCollectedPaise : advanceAmount) : advanceAmount;
 
     const newBooking: Booking = {
       id: `bk-${Date.now()}`,
@@ -1645,22 +1725,22 @@ export const dbService = {
       eventType: formData.eventType,
       guestCount: formData.guestCount,
       notes: formData.notes,
-      status: formData.markAsPaid ? 'CONFIRMED' : 'APPROVED_AWAITING_PAYMENT',
+      status: isPaid ? 'CONFIRMED' : 'APPROVED_AWAITING_PAYMENT',
       activeSlotKey: activeKey,
-      holdExpiresAt: formData.markAsPaid ? null : new Date(Date.now() + 48 * 3600000).toISOString(),
+      holdExpiresAt: isPaid ? null : new Date(Date.now() + 48 * 3600000).toISOString(),
       totalAmountPaise: totalAmount,
-      advanceAmountPaise: advanceAmount,
+      advanceAmountPaise: collectedAmount,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     mem.bookings.push(newBooking);
 
-    if (formData.markAsPaid) {
+    if (isPaid) {
       mem.payments.push({
         id: `pay-${Date.now()}`,
         bookingId: newBooking.id,
-        amountPaise: formData.amountCollectedPaise || advanceAmount,
+        amountPaise: collectedAmount,
         currency: 'INR',
         status: 'PAID',
         method: formData.paymentMethod || 'CASH',
@@ -2028,6 +2108,303 @@ export const dbService = {
     mem.refunds.push(ref as any);
     mem.save();
     return { success: true, refund: ref };
+  },
+
+  // Update payment amount, status, method (Admin)
+  async updatePayment(
+    paymentId: string,
+    data: {
+      amountPaise?: number;
+      status?: PaymentStatus;
+      method?: string;
+      reason?: string;
+    },
+    adminId?: string,
+    adminName?: string
+  ): Promise<{ success: boolean; payment?: Payment; error?: string }> {
+    const isDb = await checkDbConnection();
+    const nowIso = new Date().toISOString();
+
+    if (isDb) {
+      try {
+        const fields: string[] = [];
+        const params: any[] = [];
+        if (data.amountPaise !== undefined) {
+          fields.push('amount_paise = ?');
+          params.push(data.amountPaise);
+        }
+        if (data.status !== undefined) {
+          fields.push('status = ?');
+          params.push(data.status);
+          if (data.status === 'PAID') {
+            fields.push('paid_at = NOW()');
+          }
+        }
+        if (data.method !== undefined) {
+          fields.push('method = ?');
+          params.push(data.method);
+        }
+
+        if (fields.length > 0) {
+          params.push(paymentId);
+          await execute(`UPDATE vf_payments SET ${fields.join(', ')} WHERE id = ?`, params);
+        }
+
+        const pays = await query<any>(`SELECT * FROM vf_payments WHERE id = ? LIMIT 1`, [paymentId]);
+        if (pays.length === 0) return { success: false, error: 'Payment record not found.' };
+        const p = pays[0];
+
+        // Synchronize associated booking status & advance payment
+        if (p.booking_id) {
+          if (data.status === 'PAID') {
+            await execute(
+              `UPDATE vf_bookings SET status = 'CONFIRMED', advance_amount_paise = ?, updated_at = NOW() WHERE id = ?`,
+              [data.amountPaise !== undefined ? data.amountPaise : p.amount_paise, p.booking_id]
+            );
+          } else if (data.status === 'REFUNDED') {
+            await execute(
+              `INSERT INTO vf_refunds (id, payment_id, amount_paise, status, reason, created_at)
+               VALUES (?, ?, ?, 'PROCESSED', ?, NOW())`,
+              [`ref-${Date.now()}`, paymentId, data.amountPaise || p.amount_paise, data.reason || 'Admin marked payment as REFUNDED']
+            ).catch(() => {});
+          }
+        }
+
+        await execute(
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+           VALUES (?, ?, ?, 'Payment', ?, 'UPDATE_PAYMENT', ?)`,
+          [`log-${Date.now()}`, adminId || null, adminName || null, paymentId, JSON.stringify(data)]
+        ).catch(() => {});
+
+        return {
+          success: true,
+          payment: {
+            id: p.id,
+            bookingId: p.booking_id,
+            bookingReference: p.booking_reference,
+            razorpayOrderId: p.razorpay_order_id,
+            razorpayPaymentId: p.razorpay_payment_id,
+            amountPaise: p.amount_paise,
+            currency: p.currency,
+            status: p.status,
+            method: p.method,
+            paidAt: formatIsoString(p.paid_at),
+            createdAt: formatIsoString(p.created_at) || nowIso,
+          },
+        };
+      } catch (err: any) {
+        console.error('[MySQL] updatePayment error:', err);
+      }
+    }
+
+    // Mem fallback
+    const p = mem.payments.find((x) => x.id === paymentId);
+    if (!p) return { success: false, error: 'Payment not found.' };
+
+    if (data.amountPaise !== undefined) p.amountPaise = data.amountPaise;
+    if (data.status !== undefined) {
+      p.status = data.status;
+      if (data.status === 'PAID' && !p.paidAt) p.paidAt = nowIso;
+    }
+    if (data.method !== undefined) p.method = data.method;
+
+    const b = mem.bookings.find((bk) => bk.id === p.bookingId);
+    if (b) {
+      if (data.status === 'PAID') {
+        b.status = 'CONFIRMED';
+        if (data.amountPaise !== undefined) {
+          b.advanceAmountPaise = data.amountPaise;
+        }
+        b.updatedAt = nowIso;
+      }
+    }
+
+    if (data.status === 'REFUNDED') {
+      mem.refunds.push({
+        id: `ref-${Date.now()}`,
+        paymentId,
+        amountPaise: data.amountPaise !== undefined ? data.amountPaise : p.amountPaise,
+        status: 'PROCESSED',
+        reason: data.reason || 'Admin marked payment as REFUNDED',
+        createdAt: nowIso,
+      });
+    }
+
+    mem.auditLogs.push({
+      id: `log-${Date.now()}`,
+      adminId,
+      adminName,
+      entityType: 'Payment',
+      entityId: paymentId,
+      action: 'UPDATE_PAYMENT',
+      newValue: data,
+      createdAt: nowIso,
+    });
+
+    mem.save();
+    return { success: true, payment: p };
+  },
+
+  // Record an offline payment for a booking
+  async recordBookingPayment(
+    bookingId: string,
+    data: {
+      amountPaise: number;
+      method: string;
+      notes?: string;
+    },
+    adminId?: string,
+    adminName?: string
+  ): Promise<{ success: boolean; booking?: Booking; payment?: Payment; error?: string }> {
+    const isDb = await checkDbConnection();
+    const paymentId = `pay-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+
+    if (isDb) {
+      try {
+        const rows = await query<any>(`SELECT * FROM vf_bookings WHERE id = ?`, [bookingId]);
+        if (rows.length === 0) return { success: false, error: 'Booking not found.' };
+        const b = rows[0];
+
+        await execute(
+          `INSERT INTO vf_payments (id, booking_id, amount_paise, currency, status, method, paid_at, created_at)
+           VALUES (?, ?, ?, 'INR', 'PAID', ?, NOW(), NOW())`,
+          [paymentId, bookingId, data.amountPaise, data.method || 'CASH_OFFLINE']
+        );
+
+        await execute(
+          `UPDATE vf_bookings SET status = 'CONFIRMED', advance_amount_paise = ?, updated_at = NOW() WHERE id = ?`,
+          [data.amountPaise, bookingId]
+        );
+
+        await execute(
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+           VALUES (?, ?, ?, 'Booking', ?, 'RECORD_OFFLINE_PAYMENT', ?)`,
+          [`log-${Date.now()}`, adminId || null, adminName || null, bookingId, JSON.stringify({ paymentId, amountPaise: data.amountPaise, method: data.method })]
+        ).catch(() => {});
+
+        const updatedBooking = await this.getBookingById(bookingId);
+        const newPayment: Payment = {
+          id: paymentId,
+          bookingId,
+          bookingReference: b.reference,
+          amountPaise: data.amountPaise,
+          currency: 'INR',
+          status: 'PAID',
+          method: data.method,
+          paidAt: nowIso,
+          createdAt: nowIso,
+        };
+        return { success: true, booking: updatedBooking || undefined, payment: newPayment };
+      } catch (err: any) {
+        console.error('[MySQL] recordBookingPayment error:', err);
+      }
+    }
+
+    // Mem fallback
+    const bk = mem.bookings.find((b) => b.id === bookingId);
+    if (!bk) return { success: false, error: 'Booking not found.' };
+
+    bk.status = 'CONFIRMED';
+    bk.advanceAmountPaise = data.amountPaise;
+    bk.updatedAt = nowIso;
+
+    const newPayment: Payment = {
+      id: paymentId,
+      bookingId,
+      bookingReference: bk.reference,
+      amountPaise: data.amountPaise,
+      currency: 'INR',
+      status: 'PAID',
+      method: data.method,
+      paidAt: nowIso,
+      createdAt: nowIso,
+    };
+    mem.payments.push(newPayment);
+
+    mem.auditLogs.push({
+      id: `log-${Date.now()}`,
+      adminId,
+      adminName,
+      entityType: 'Booking',
+      entityId: bookingId,
+      action: 'RECORD_OFFLINE_PAYMENT',
+      newValue: { paymentId, amountPaise: data.amountPaise, method: data.method },
+      createdAt: nowIso,
+    });
+
+    mem.save();
+    return { success: true, booking: bk, payment: newPayment };
+  },
+
+  // Update booking amounts & status (Admin)
+  async updateBooking(
+    bookingId: string,
+    data: {
+      totalAmountPaise?: number;
+      advanceAmountPaise?: number;
+      status?: BookingStatus;
+    },
+    adminId?: string,
+    adminName?: string
+  ): Promise<{ success: boolean; booking?: Booking; error?: string }> {
+    const isDb = await checkDbConnection();
+    const nowIso = new Date().toISOString();
+
+    if (isDb) {
+      try {
+        const fields: string[] = ['updated_at = NOW()'];
+        const params: any[] = [];
+        if (data.totalAmountPaise !== undefined) {
+          fields.push('total_amount_paise = ?');
+          params.push(data.totalAmountPaise);
+        }
+        if (data.advanceAmountPaise !== undefined) {
+          fields.push('advance_amount_paise = ?');
+          params.push(data.advanceAmountPaise);
+        }
+        if (data.status !== undefined) {
+          fields.push('status = ?');
+          params.push(data.status);
+        }
+        params.push(bookingId);
+        await execute(`UPDATE vf_bookings SET ${fields.join(', ')} WHERE id = ?`, params);
+
+        await execute(
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+           VALUES (?, ?, ?, 'Booking', ?, 'UPDATE_BOOKING_AMOUNTS', ?)`,
+          [`log-${Date.now()}`, adminId || null, adminName || null, bookingId, JSON.stringify(data)]
+        ).catch(() => {});
+
+        const bk = await this.getBookingById(bookingId);
+        return { success: true, booking: bk || undefined };
+      } catch (err: any) {
+        console.error('[MySQL] updateBooking error:', err);
+      }
+    }
+
+    // Mem fallback
+    const bk = mem.bookings.find((b) => b.id === bookingId);
+    if (!bk) return { success: false, error: 'Booking not found.' };
+
+    if (data.totalAmountPaise !== undefined) bk.totalAmountPaise = data.totalAmountPaise;
+    if (data.advanceAmountPaise !== undefined) bk.advanceAmountPaise = data.advanceAmountPaise;
+    if (data.status !== undefined) bk.status = data.status;
+    bk.updatedAt = nowIso;
+
+    mem.auditLogs.push({
+      id: `log-${Date.now()}`,
+      adminId,
+      adminName,
+      entityType: 'Booking',
+      entityId: bookingId,
+      action: 'UPDATE_BOOKING_AMOUNTS',
+      newValue: data,
+      createdAt: nowIso,
+    });
+
+    mem.save();
+    return { success: true, booking: bk };
   },
 
   // Get maintenance schedules

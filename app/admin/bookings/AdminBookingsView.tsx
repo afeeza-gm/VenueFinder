@@ -17,9 +17,16 @@ import {
   Download,
   PlusCircle,
   Building2,
+  Edit3,
+  DollarSign,
 } from 'lucide-react';
-import { Booking, Hall } from '@/types';
-import { approveBookingAction, rejectBookingAction } from '@/app/actions/admin';
+import { Booking, Hall, BookingStatus } from '@/types';
+import {
+  approveBookingAction,
+  rejectBookingAction,
+  recordBookingPaymentAction,
+  updateBookingAmountsAction,
+} from '@/app/actions/admin';
 
 interface AdminBookingsViewProps {
   initialBookings: Booking[];
@@ -37,6 +44,20 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
   const [rejectingBooking, setRejectingBooking] = useState<Booking | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Record Payment modal state
+  const [payingBooking, setPayingBooking] = useState<Booking | null>(null);
+  const [paymentAmountRupees, setPaymentAmountRupees] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'OFFLINE_UPI' | 'BANK_TRANSFER'>('CASH');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  // Edit Booking Amounts modal state
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [editTotalRupees, setEditTotalRupees] = useState<string>('');
+  const [editAdvanceRupees, setEditAdvanceRupees] = useState<string>('');
+  const [editStatus, setEditStatus] = useState<BookingStatus>('CONFIRMED');
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Filtered list
   const filteredBookings = bookings.filter((b) => {
@@ -56,13 +77,13 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
     return venues.find((v) => v.id === hallId)?.name || hallId;
   };
 
-  // Quick stats
+  // Quick stats - mathematically accurate
   const pendingCount = bookings.filter((b) => b.status === 'PENDING').length;
   const awaitingPaymentCount = bookings.filter((b) => b.status === 'APPROVED_AWAITING_PAYMENT').length;
   const confirmedCount = bookings.filter((b) => b.status === 'CONFIRMED').length;
   const totalRevenuePaise = bookings
     .filter((b) => b.status === 'CONFIRMED' || b.status === 'COMPLETED')
-    .reduce((sum, b) => sum + b.advanceAmountPaise, 0);
+    .reduce((sum, b) => sum + (b.advanceAmountPaise || 0), 0);
 
   const handleApprove = async (booking: Booking) => {
     const venueName = getVenueName(booking.hallId);
@@ -113,6 +134,110 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
     }
   };
 
+  // Open Record Payment Modal
+  const openRecordPaymentModal = (b: Booking) => {
+    setPayingBooking(b);
+    setPaymentAmountRupees(String(b.advanceAmountPaise / 100));
+    setPaymentMethod('CASH');
+    setPaymentNotes('');
+    setPaymentError(null);
+  };
+
+  // Handle Record Offline Payment
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payingBooking) return;
+
+    const numRupees = parseFloat(paymentAmountRupees);
+    if (isNaN(numRupees) || numRupees < 0) {
+      setPaymentError('Please enter a valid positive payment amount.');
+      return;
+    }
+
+    setActionLoading(true);
+    setPaymentError(null);
+
+    const amountPaise = Math.round(numRupees * 100);
+    const res = await recordBookingPaymentAction(payingBooking.id, {
+      amountPaise,
+      method: paymentMethod,
+      notes: paymentNotes.trim() || undefined,
+    });
+    setActionLoading(false);
+
+    if (res.success && res.booking) {
+      setBookings((prev) =>
+        prev.map((b) => (b.id === payingBooking.id ? { ...b, ...res.booking } : b))
+      );
+      if (selectedBooking?.id === payingBooking.id) {
+        setSelectedBooking((prev) => (prev ? { ...prev, ...res.booking } : null));
+      }
+      alert(`Payment of ₹${numRupees.toLocaleString('en-IN')} recorded for ${payingBooking.reference}! Booking is now CONFIRMED.`);
+      setPayingBooking(null);
+    } else {
+      setPaymentError(res.error || 'Failed to record payment.');
+    }
+  };
+
+  // Open Edit Booking Modal
+  const openEditBookingModal = (b: Booking) => {
+    setEditingBooking(b);
+    setEditTotalRupees(String(b.totalAmountPaise / 100));
+    setEditAdvanceRupees(String(b.advanceAmountPaise / 100));
+    setEditStatus(b.status);
+    setEditError(null);
+  };
+
+  // Handle Edit Booking Amounts
+  const handleSaveBookingAmounts = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBooking) return;
+
+    const totalNum = parseFloat(editTotalRupees);
+    const advNum = parseFloat(editAdvanceRupees);
+
+    if (isNaN(totalNum) || totalNum < 0) {
+      setEditError('Please enter a valid total tariff amount.');
+      return;
+    }
+
+    if (isNaN(advNum) || advNum < 0) {
+      setEditError('Please enter a valid advance payment amount.');
+      return;
+    }
+
+    if (advNum > totalNum) {
+      setEditError('Advance payment cannot exceed total slot tariff.');
+      return;
+    }
+
+    setActionLoading(true);
+    setEditError(null);
+
+    const totalAmountPaise = Math.round(totalNum * 100);
+    const advanceAmountPaise = Math.round(advNum * 100);
+
+    const res = await updateBookingAmountsAction(editingBooking.id, {
+      totalAmountPaise,
+      advanceAmountPaise,
+      status: editStatus,
+    });
+    setActionLoading(false);
+
+    if (res.success && res.booking) {
+      setBookings((prev) =>
+        prev.map((b) => (b.id === editingBooking.id ? { ...b, ...res.booking } : b))
+      );
+      if (selectedBooking?.id === editingBooking.id) {
+        setSelectedBooking((prev) => (prev ? { ...prev, ...res.booking } : null));
+      }
+      alert(`Booking ${editingBooking.reference} updated successfully: Total ₹${totalNum.toLocaleString('en-IN')}, Advance ₹${advNum.toLocaleString('en-IN')}`);
+      setEditingBooking(null);
+    } else {
+      setEditError(res.error || 'Failed to update booking amounts.');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
@@ -141,7 +266,7 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
             Booking Requests & Queue
           </h1>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Review incoming requests across all venues, approve payment holds, issue rejections, or create offline bookings.
+            Review incoming requests across all venues, approve payment holds, issue rejections, edit tariffs, or collect offline payments.
           </p>
         </div>
 
@@ -189,7 +314,7 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
           <div className="text-3xl font-extrabold text-neutral-900 mt-2">
             ₹{(totalRevenuePaise / 100).toLocaleString('en-IN')}
           </div>
-          <div className="text-[11px] text-neutral-400 mt-1">Total verified payments</div>
+          <div className="text-[11px] text-neutral-400 mt-1">Total verified advance collected</div>
         </div>
       </div>
 
@@ -239,6 +364,7 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
               <option value="REJECTED">Rejected</option>
               <option value="EXPIRED">Expired</option>
               <option value="CANCELLED">Cancelled</option>
+              <option value="COMPLETED">Completed</option>
             </select>
           </div>
         </div>
@@ -255,7 +381,7 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
                 <th className="py-3 px-4">Date & Slot</th>
                 <th className="py-3 px-4">Applicant</th>
                 <th className="py-3 px-4">Event Type</th>
-                <th className="py-3 px-4">Tariff</th>
+                <th className="py-3 px-4">Tariff & Balance</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -268,76 +394,104 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
                   </td>
                 </tr>
               ) : (
-                filteredBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-neutral-50/70 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-neutral-900">
-                      {b.reference}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-neutral-800">
-                      {getVenueName(b.hallId)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-neutral-900">{b.eventDate}</div>
-                      <div className="text-[11px] text-neutral-500">{b.slot?.label || b.slotId}</div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-neutral-900">{b.applicantName}</div>
-                      <div className="text-[11px] text-neutral-500">{b.applicantPhone}</div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="text-neutral-900">{b.eventType}</div>
-                      <div className="text-[11px] text-neutral-500">{b.guestCount} Guests</div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-neutral-900">
-                        ₹{(b.totalAmountPaise / 100).toLocaleString('en-IN')}
-                      </div>
-                      <div className="text-[10px] text-amber-700">
-                        Adv: ₹{(b.advanceAmountPaise / 100).toLocaleString('en-IN')}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStatusBadge(
-                          b.status
-                        )}`}
-                      >
-                        {b.status.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right space-x-1 whitespace-nowrap">
-                      <button
-                        onClick={() => setSelectedBooking(b)}
-                        className="p-1.5 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg inline-flex items-center"
-                        title="View Full Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
+                filteredBookings.map((b) => {
+                  const balanceDue = Math.max(0, (b.totalAmountPaise - b.advanceAmountPaise) / 100);
+                  return (
+                    <tr key={b.id} className="hover:bg-neutral-50/70 transition-colors">
+                      <td className="py-3 px-4 font-mono font-bold text-neutral-900">
+                        {b.reference}
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-neutral-800">
+                        {getVenueName(b.hallId)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-neutral-900">{b.eventDate}</div>
+                        <div className="text-[11px] text-neutral-500">{b.slot?.label || b.slotId}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-neutral-900">{b.applicantName}</div>
+                        <div className="text-[11px] text-neutral-500">{b.applicantPhone}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-neutral-900">{b.eventType}</div>
+                        <div className="text-[11px] text-neutral-500">{b.guestCount} Guests</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-neutral-900">
+                          Total: ₹{(b.totalAmountPaise / 100).toLocaleString('en-IN')}
+                        </div>
+                        <div className="text-[11px] text-emerald-700 font-medium">
+                          Adv: ₹{(b.advanceAmountPaise / 100).toLocaleString('en-IN')}
+                        </div>
+                        {balanceDue > 0 && (
+                          <div className="text-[10px] text-neutral-400">
+                            Bal: ₹{balanceDue.toLocaleString('en-IN')}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStatusBadge(
+                            b.status
+                          )}`}
+                        >
+                          {b.status.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+                        <button
+                          onClick={() => setSelectedBooking(b)}
+                          className="p-1.5 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg inline-flex items-center"
+                          title="View Full Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
 
-                      {b.status === 'PENDING' && (
-                        <>
+                        <button
+                          onClick={() => openEditBookingModal(b)}
+                          className="p-1.5 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg inline-flex items-center"
+                          title="Edit Booking Tariffs & Amounts"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+
+                        {b.status === 'PENDING' && (
+                          <>
+                            <button
+                              disabled={actionLoading}
+                              onClick={() => handleApprove(b)}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-2.5 py-1 rounded-lg text-[11px] transition-colors"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              disabled={actionLoading}
+                              onClick={() => {
+                                setRejectingBooking(b);
+                                setRejectionReason('');
+                              }}
+                              className="bg-red-600 hover:bg-red-500 text-white font-semibold px-2.5 py-1 rounded-lg text-[11px] transition-colors"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+
+                        {b.status === 'APPROVED_AWAITING_PAYMENT' && (
                           <button
                             disabled={actionLoading}
-                            onClick={() => handleApprove(b)}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-2.5 py-1 rounded-lg text-[11px] transition-colors"
+                            onClick={() => openRecordPaymentModal(b)}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-2.5 py-1 rounded-lg text-[11px] transition-colors inline-flex items-center space-x-1"
+                            title="Record payment collected offline"
                           >
-                            Approve
+                            <CreditCard className="w-3 h-3" />
+                            <span>Collect</span>
                           </button>
-                          <button
-                            disabled={actionLoading}
-                            onClick={() => {
-                              setRejectingBooking(b);
-                              setRejectionReason('');
-                            }}
-                            className="bg-red-600 hover:bg-red-500 text-white font-semibold px-2.5 py-1 rounded-lg text-[11px] transition-colors"
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -347,7 +501,7 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
       {/* Booking Details Modal */}
       {selectedBooking && (
         <div className="fixed inset-0 bg-neutral-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-xl max-h-[90vh] overflow-y-auto text-xs">
             <div className="flex justify-between items-start border-b border-neutral-200 pb-4">
               <div>
                 <div className="text-xs uppercase font-bold text-neutral-400">Booking Record</div>
@@ -364,7 +518,7 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <span className="text-neutral-500 block">Status:</span>
                 <span className={`font-bold px-2 py-0.5 rounded-full inline-block mt-0.5 ${getStatusBadge(selectedBooking.status)}`}>
@@ -409,6 +563,37 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
               </div>
             </div>
 
+            {/* Financial Breakdown Card */}
+            <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200 space-y-2">
+              <div className="text-xs font-bold uppercase tracking-wider text-neutral-700 flex items-center space-x-1.5">
+                <DollarSign className="w-4 h-4 text-emerald-600" />
+                <span>Financial & Payment Breakdown</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 text-center pt-1">
+                <div className="p-2.5 rounded-xl bg-white border border-neutral-200">
+                  <div className="text-[10px] text-neutral-400 font-semibold uppercase">Total Tariff</div>
+                  <div className="text-sm font-bold text-neutral-900 mt-0.5">
+                    ₹{(selectedBooking.totalAmountPaise / 100).toLocaleString('en-IN')}
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-white border border-neutral-200">
+                  <div className="text-[10px] text-neutral-400 font-semibold uppercase">Advance Paid/Due</div>
+                  <div className="text-sm font-bold text-emerald-700 mt-0.5">
+                    ₹{(selectedBooking.advanceAmountPaise / 100).toLocaleString('en-IN')}
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-white border border-neutral-200">
+                  <div className="text-[10px] text-neutral-400 font-semibold uppercase">Remaining Balance</div>
+                  <div className="text-sm font-bold text-neutral-700 mt-0.5">
+                    ₹{Math.max(0, (selectedBooking.totalAmountPaise - selectedBooking.advanceAmountPaise) / 100).toLocaleString('en-IN')}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {selectedBooking.notes && (
               <div className="bg-neutral-50 p-3 rounded-xl border border-neutral-200 text-xs">
                 <span className="font-semibold text-neutral-700 block">Special Notes:</span>
@@ -423,7 +608,19 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
               </div>
             )}
 
-            <div className="pt-2 flex justify-end">
+            <div className="pt-2 flex justify-between items-center">
+              <button
+                onClick={() => {
+                  const b = selectedBooking;
+                  setSelectedBooking(null);
+                  openEditBookingModal(b);
+                }}
+                className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors inline-flex items-center space-x-1.5"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edit Tariffs & Status</span>
+              </button>
+
               <button
                 onClick={() => setSelectedBooking(null)}
                 className="bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-semibold px-4 py-2 rounded-xl transition-colors"
@@ -432,6 +629,218 @@ export default function AdminBookingsView({ initialBookings, venues }: AdminBook
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Record Payment Modal */}
+      {payingBooking && (
+        <div className="fixed inset-0 bg-neutral-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <form
+            onSubmit={handleRecordPayment}
+            className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-4 shadow-xl text-xs"
+          >
+            <div className="flex items-center space-x-2 text-emerald-700">
+              <CreditCard className="w-5 h-5" />
+              <h3 className="text-base font-bold">Record Payment Collection</h3>
+            </div>
+
+            <p className="text-neutral-600">
+              Confirm offline cash or bank transfer payment for booking{' '}
+              <strong className="font-mono">{payingBooking.reference}</strong> ({getVenueName(payingBooking.hallId)}).
+            </p>
+
+            {paymentError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl">
+                {paymentError}
+              </div>
+            )}
+
+            <div className="bg-neutral-50 p-3 rounded-xl border border-neutral-200 space-y-1">
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Applicant:</span>
+                <span className="font-semibold text-neutral-900">{payingBooking.applicantName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Full Slot Tariff:</span>
+                <span className="font-semibold text-neutral-900">₹{(payingBooking.totalAmountPaise / 100).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Required Advance:</span>
+                <span className="font-bold text-amber-700">₹{(payingBooking.advanceAmountPaise / 100).toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-neutral-700 mb-1">
+                Amount Collected in INR <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                step="any"
+                min={0}
+                required
+                value={paymentAmountRupees}
+                onChange={(e) => setPaymentAmountRupees(e.target.value)}
+                placeholder="Enter collected amount (e.g. 8750)"
+                className="w-full p-2.5 rounded-xl border border-neutral-300 font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+              />
+              <span className="text-[10px] text-neutral-400 mt-0.5 block">
+                Enter any exact amount collected. No fixed step constraints.
+              </span>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-neutral-700 mb-1">
+                Payment Method
+              </label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as any)}
+                className="w-full p-2.5 rounded-xl border border-neutral-300 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+              >
+                <option value="CASH">Cash Collection</option>
+                <option value="OFFLINE_UPI">Direct UPI / QR Transfer</option>
+                <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-neutral-700 mb-1">
+                Payment Receipt / Administrative Notes
+              </label>
+              <textarea
+                rows={2}
+                placeholder="e.g. Cash receipt #1052 issued, money placed in cash drawer."
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPayingBooking(null)}
+                className="bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold px-4 py-2 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={actionLoading}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-5 py-2 rounded-xl disabled:opacity-50"
+              >
+                {actionLoading ? 'Recording...' : 'Confirm Payment & Confirm Booking'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Booking Tariffs & Amounts Modal */}
+      {editingBooking && (
+        <div className="fixed inset-0 bg-neutral-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <form
+            onSubmit={handleSaveBookingAmounts}
+            className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-4 shadow-xl text-xs"
+          >
+            <div className="flex items-center space-x-2 text-neutral-900">
+              <Edit3 className="w-5 h-5 text-amber-600" />
+              <h3 className="text-base font-bold">Edit Booking Tariffs & Amounts</h3>
+            </div>
+
+            <p className="text-neutral-600">
+              Update total slot price, advance payment requirement, or status for booking{' '}
+              <strong className="font-mono">{editingBooking.reference}</strong>.
+            </p>
+
+            {editError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl">
+                {editError}
+              </div>
+            )}
+
+            <div>
+              <label className="block font-semibold text-neutral-700 mb-1">
+                Total Slot Tariff in INR <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                step="any"
+                min={0}
+                required
+                value={editTotalRupees}
+                onChange={(e) => setEditTotalRupees(e.target.value)}
+                placeholder="Total venue fee in INR"
+                className="w-full p-2.5 rounded-xl border border-neutral-300 font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-neutral-700 mb-1">
+                Advance Payment in INR <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                step="any"
+                min={0}
+                required
+                value={editAdvanceRupees}
+                onChange={(e) => setEditAdvanceRupees(e.target.value)}
+                placeholder="Advance required in INR"
+                className="w-full p-2.5 rounded-xl border border-neutral-300 font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+              />
+            </div>
+
+            {/* Realtime Calculated Balance */}
+            {(() => {
+              const totalVal = parseFloat(editTotalRupees) || 0;
+              const advVal = parseFloat(editAdvanceRupees) || 0;
+              const balVal = Math.max(0, totalVal - advVal);
+              return (
+                <div className="bg-neutral-50 p-2.5 rounded-xl border border-neutral-200 flex justify-between items-center text-xs">
+                  <span className="text-neutral-600">Calculated Balance Due:</span>
+                  <strong className="text-neutral-900 font-bold">₹{balVal.toLocaleString('en-IN')}</strong>
+                </div>
+              );
+            })()}
+
+            <div>
+              <label className="block font-semibold text-neutral-700 mb-1">
+                Booking Status
+              </label>
+              <select
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as BookingStatus)}
+                className="w-full p-2.5 rounded-xl border border-neutral-300 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+              >
+                <option value="PENDING">PENDING</option>
+                <option value="APPROVED_AWAITING_PAYMENT">APPROVED AWAITING PAYMENT</option>
+                <option value="CONFIRMED">CONFIRMED</option>
+                <option value="REJECTED">REJECTED</option>
+                <option value="EXPIRED">EXPIRED</option>
+                <option value="CANCELLED">CANCELLED</option>
+                <option value="COMPLETED">COMPLETED</option>
+              </select>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingBooking(null)}
+                className="bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold px-4 py-2 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={actionLoading}
+                className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-5 py-2 rounded-xl disabled:opacity-50"
+              >
+                {actionLoading ? 'Saving...' : 'Save Booking Amounts'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

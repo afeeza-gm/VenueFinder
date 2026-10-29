@@ -139,7 +139,7 @@ export default function NewVenueView() {
       label: s.label,
       startTime: s.startTime,
       endTime: s.endTime,
-      basePricePaise: Math.round(s.priceRupees * 100),
+      basePricePaise: Math.round(Number(s.priceRupees || 0) * 100),
     }));
 
     const formattedFacilities = selectedFacilities.map((fName) => {
@@ -423,10 +423,10 @@ export default function NewVenueView() {
                   <input
                     type="number"
                     min={0}
-                    step={500}
+                    step="any"
                     required
                     value={slot.priceRupees}
-                    onChange={(e) => handleUpdateSlot(index, 'priceRupees', parseInt(e.target.value, 10) || 0)}
+                    onChange={(e) => handleUpdateSlot(index, 'priceRupees', parseFloat(e.target.value) || 0)}
                     className="w-full p-2 rounded-xl border border-neutral-300 bg-white text-xs font-bold text-amber-700"
                   />
                 </div>

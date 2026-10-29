@@ -11,9 +11,13 @@ import {
   Clock,
   ShieldCheck,
   Search,
+  Edit3,
+  DollarSign,
+  TrendingUp,
+  XCircle,
 } from 'lucide-react';
-import { Payment, AuditLog } from '@/types';
-import { issueRefundAction } from '@/app/actions/admin';
+import { Payment, AuditLog, PaymentStatus } from '@/types';
+import { issueRefundAction, updatePaymentAction } from '@/app/actions/admin';
 
 interface PaymentsViewProps {
   initialPayments: Payment[];
@@ -34,6 +38,27 @@ export default function PaymentsView({
   const [refundReason, setRefundReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Edit Payment Modal state
+  const [editTarget, setEditTarget] = useState<Payment | null>(null);
+  const [editAmountRupees, setEditAmountRupees] = useState<string>('');
+  const [editStatus, setEditStatus] = useState<PaymentStatus>('PAID');
+  const [editMethod, setEditMethod] = useState<string>('CASH');
+  const [editReason, setEditReason] = useState<string>('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Real-time KPI Calculations
+  const totalPaidPaise = payments
+    .filter((p) => p.status === 'PAID')
+    .reduce((sum, p) => sum + p.amountPaise, 0);
+
+  const totalRefundedPaise = payments
+    .filter((p) => p.status === 'REFUNDED')
+    .reduce((sum, p) => sum + p.amountPaise, 0);
+
+  const netRevenuePaise = Math.max(0, totalPaidPaise - totalRefundedPaise);
+  const completedCount = payments.filter((p) => p.status === 'PAID').length;
 
   const openRefundModal = (payment: Payment) => {
     setRefundTarget(payment);
@@ -62,9 +87,77 @@ export default function PaymentsView({
       setPayments((prev) =>
         prev.map((p) => (p.id === refundTarget.id ? { ...p, status: 'REFUNDED' } : p))
       );
+      setAuditLogs((prev) => [
+        {
+          id: `log-${Date.now()}`,
+          adminId: 'current',
+          adminName: 'Admin',
+          entityType: 'Refund',
+          entityId: res.refund?.id || refundTarget.id,
+          action: 'REFUND',
+          newValue: { paymentId: refundTarget.id, amountPaise: refundAmountPaise, reason: refundReason },
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
       setRefundTarget(null);
     } else {
       setError(res.error || 'Failed to issue refund.');
+    }
+  };
+
+  const openEditModal = (payment: Payment) => {
+    setEditTarget(payment);
+    setEditAmountRupees(String(payment.amountPaise / 100));
+    setEditStatus(payment.status);
+    setEditMethod(payment.method || 'CASH');
+    setEditReason('');
+    setEditError(null);
+  };
+
+  const handleUpdatePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+
+    const numRupees = parseFloat(editAmountRupees);
+    if (isNaN(numRupees) || numRupees < 0) {
+      setEditError('Please enter a valid positive payment amount.');
+      return;
+    }
+
+    setEditLoading(true);
+    setEditError(null);
+
+    const updatedPaise = Math.round(numRupees * 100);
+    const res = await updatePaymentAction(editTarget.id, {
+      amountPaise: updatedPaise,
+      status: editStatus,
+      method: editMethod,
+      reason: editReason.trim() || undefined,
+    });
+    setEditLoading(false);
+
+    if (res.success && res.payment) {
+      setPayments((prev) =>
+        prev.map((p) => (p.id === editTarget.id ? { ...p, ...res.payment } : p))
+      );
+      setAuditLogs((prev) => [
+        {
+          id: `log-${Date.now()}`,
+          adminId: 'current',
+          adminName: 'Admin',
+          entityType: 'Payment',
+          entityId: editTarget.id,
+          action: 'UPDATE_PAYMENT',
+          newValue: { amountPaise: updatedPaise, status: editStatus, method: editMethod },
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+      alert(`Payment ${editTarget.id} successfully updated to ₹${numRupees.toLocaleString('en-IN')} (${editStatus})`);
+      setEditTarget(null);
+    } else {
+      setEditError(res.error || 'Failed to update payment.');
     }
   };
 
@@ -76,7 +169,7 @@ export default function PaymentsView({
             Payments, Refunds & Audit Trail
           </h1>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Verified Razorpay and offline transactions, refund management, and immutable system audit log.
+            Verified Razorpay and offline transactions, real-time payment corrections, refund management, and audit log.
           </p>
         </div>
 
@@ -89,6 +182,39 @@ export default function PaymentsView({
             <Download className="w-4 h-4" />
             <span>Export Transactions CSV</span>
           </a>
+        </div>
+      </div>
+
+      {/* Realtime Financial KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl border border-neutral-200 p-5 shadow-xs">
+          <div className="text-xs font-semibold text-neutral-500 uppercase">Total Payments Collected</div>
+          <div className="text-3xl font-extrabold text-emerald-600 mt-2">
+            ₹{(totalPaidPaise / 100).toLocaleString('en-IN')}
+          </div>
+          <div className="text-[11px] text-neutral-400 mt-1">Verified gross transactions</div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-neutral-200 p-5 shadow-xs">
+          <div className="text-xs font-semibold text-neutral-500 uppercase">Refunds Processed</div>
+          <div className="text-3xl font-extrabold text-purple-600 mt-2">
+            ₹{(totalRefundedPaise / 100).toLocaleString('en-IN')}
+          </div>
+          <div className="text-[11px] text-neutral-400 mt-1">Returned to applicants</div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-neutral-200 p-5 shadow-xs">
+          <div className="text-xs font-semibold text-neutral-500 uppercase">Net Revenue Retained</div>
+          <div className="text-3xl font-extrabold text-neutral-900 mt-2">
+            ₹{(netRevenuePaise / 100).toLocaleString('en-IN')}
+          </div>
+          <div className="text-[11px] text-neutral-400 mt-1">Total revenue minus refunds</div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-neutral-200 p-5 shadow-xs">
+          <div className="text-xs font-semibold text-neutral-500 uppercase">Completed Payments</div>
+          <div className="text-3xl font-extrabold text-blue-600 mt-2">{completedCount}</div>
+          <div className="text-[11px] text-neutral-400 mt-1">{payments.length} total transaction records</div>
         </div>
       </div>
 
@@ -158,6 +284,8 @@ export default function PaymentsView({
                               ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                               : p.status === 'REFUNDED'
                               ? 'bg-purple-100 text-purple-800 border-purple-300'
+                              : p.status === 'FAILED'
+                              ? 'bg-red-100 text-red-800 border-red-300'
                               : 'bg-neutral-100 text-neutral-700 border-neutral-300'
                           }`}
                         >
@@ -175,18 +303,28 @@ export default function PaymentsView({
                             })
                           : 'N/A'}
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        {p.status === 'PAID' ? (
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end space-x-1.5">
                           <button
-                            onClick={() => openRefundModal(p)}
-                            className="inline-flex items-center space-x-1 text-[11px] font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors border border-red-200"
+                            onClick={() => openEditModal(p)}
+                            className="inline-flex items-center space-x-1 text-[11px] font-semibold text-neutral-700 hover:text-neutral-900 bg-neutral-100 hover:bg-neutral-200 px-2.5 py-1 rounded-lg transition-colors border border-neutral-300"
+                            title="Edit Payment Details"
                           >
-                            <RotateCcw className="w-3 h-3" />
-                            <span>Issue Refund</span>
+                            <Edit3 className="w-3 h-3" />
+                            <span>Edit</span>
                           </button>
-                        ) : (
-                          <span className="text-neutral-400 text-[11px]">N/A</span>
-                        )}
+
+                          {p.status === 'PAID' && (
+                            <button
+                              onClick={() => openRefundModal(p)}
+                              className="inline-flex items-center space-x-1 text-[11px] font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors border border-red-200"
+                              title="Process Refund"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Refund</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -241,6 +379,133 @@ export default function PaymentsView({
         </div>
       )}
 
+      {/* Edit Payment Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 bg-neutral-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <form
+            onSubmit={handleUpdatePayment}
+            className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-4 shadow-xl text-xs"
+          >
+            <div className="flex items-center space-x-2 text-neutral-900">
+              <CreditCard className="w-5 h-5 text-amber-600" />
+              <h3 className="text-base font-bold">Edit Payment Record</h3>
+            </div>
+
+            <p className="text-neutral-600">
+              Update payment amount, payment method, or transaction status for{' '}
+              <strong className="font-mono">{editTarget.razorpayPaymentId || editTarget.id}</strong>.
+            </p>
+
+            {editError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl">
+                {editError}
+              </div>
+            )}
+
+            <div>
+              <label className="block font-semibold text-neutral-700 mb-1">
+                Booking Reference
+              </label>
+              <input
+                type="text"
+                disabled
+                value={editTarget.bookingReference || editTarget.bookingId}
+                className="w-full p-2.5 rounded-xl border border-neutral-200 bg-neutral-100 font-mono text-neutral-700"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-neutral-700 mb-1">
+                Payment Amount in INR <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                step="any"
+                min={0}
+                required
+                value={editAmountRupees}
+                onChange={(e) => setEditAmountRupees(e.target.value)}
+                placeholder="Enter exact payment amount (e.g. 8750)"
+                className="w-full p-2.5 rounded-xl border border-neutral-300 font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+              />
+              <span className="text-[10px] text-neutral-400 mt-0.5 block">
+                Any valid positive value in Rupees. Changes reflect immediately in revenue totals.
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-neutral-700 mb-1">
+                  Payment Method
+                </label>
+                <select
+                  value={editMethod}
+                  onChange={(e) => setEditMethod(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-neutral-300 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                >
+                  <option value="CASH">Cash</option>
+                  <option value="OFFLINE_UPI">UPI Transfer</option>
+                  <option value="RAZORPAY">Razorpay</option>
+                  <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
+                  <option value="CHEQUE">Cheque / Demand Draft</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-neutral-700 mb-1">
+                  Payment Status
+                </label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as PaymentStatus)}
+                  className="w-full p-2.5 rounded-xl border border-neutral-300 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                >
+                  <option value="PAID">PAID</option>
+                  <option value="REFUNDED">REFUNDED</option>
+                  <option value="FAILED">FAILED</option>
+                  <option value="CREATED">CREATED</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-neutral-700 mb-1">
+                Reason / Administrative Note
+              </label>
+              <textarea
+                rows={2}
+                placeholder="e.g. Corrected cash receipt discrepancy, verified with bank register."
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+
+            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
+              <strong>Mathematical Verification:</strong> Setting this payment to <strong>PAID</strong> locks the verified payment and marks the booking as confirmed.
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditTarget(null)}
+                className="bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold px-4 py-2 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={editLoading}
+                className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-5 py-2 rounded-xl disabled:opacity-50"
+              >
+                {editLoading ? 'Saving...' : 'Save Payment Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Refund Modal (FR-23) */}
       {refundTarget && (
         <div className="fixed inset-0 bg-neutral-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
@@ -271,7 +536,7 @@ export default function PaymentsView({
               <input
                 type="number"
                 step="any"
-                min={1}
+                min={0.01}
                 max={refundTarget.amountPaise / 100}
                 value={refundAmountPaise / 100}
                 onChange={(e) =>

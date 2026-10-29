@@ -5,6 +5,7 @@ import { getAdminSession, setAdminSessionCookie, clearAdminSessionCookie, create
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { PaymentStatus, BookingStatus } from '@/types';
 
 export async function loginAdminAction(formData: { email: string; password: string }) {
   try {
@@ -80,7 +81,12 @@ export async function createManualBookingAction(formData: {
   const session = await getAdminSession();
   if (!session) return { success: false, error: 'Unauthorized.' };
 
-  const res = await dbService.createManualBooking(formData, session.adminId, session.name);
+  const markAsPaid = formData.amountCollectedPaise > 0;
+  const res = await dbService.createManualBooking(
+    { ...formData, markAsPaid },
+    session.adminId,
+    session.name
+  );
   if (res.success) {
     revalidatePath('/admin/bookings');
     revalidatePath('/admin/payments');
@@ -134,6 +140,67 @@ export async function issueRefundAction(paymentId: string, amountPaise: number, 
     revalidatePath('/admin/payments');
     revalidatePath('/admin/bookings');
     return { success: true, refund: res.refund };
+  }
+  return { success: false, error: res.error };
+}
+
+export async function updatePaymentAction(
+  paymentId: string,
+  data: {
+    amountPaise?: number;
+    status?: PaymentStatus;
+    method?: string;
+    reason?: string;
+  }
+) {
+  const session = await getAdminSession();
+  if (!session) return { success: false, error: 'Unauthorized.' };
+
+  const res = await dbService.updatePayment(paymentId, data, session.adminId, session.name);
+  if (res.success) {
+    revalidatePath('/admin/payments');
+    revalidatePath('/admin/bookings');
+    return { success: true, payment: res.payment };
+  }
+  return { success: false, error: res.error };
+}
+
+export async function recordBookingPaymentAction(
+  bookingId: string,
+  data: {
+    amountPaise: number;
+    method: string;
+    notes?: string;
+  }
+) {
+  const session = await getAdminSession();
+  if (!session) return { success: false, error: 'Unauthorized.' };
+
+  const res = await dbService.recordBookingPayment(bookingId, data, session.adminId, session.name);
+  if (res.success) {
+    revalidatePath('/admin/bookings');
+    revalidatePath('/admin/payments');
+    return { success: true, booking: res.booking, payment: res.payment };
+  }
+  return { success: false, error: res.error };
+}
+
+export async function updateBookingAmountsAction(
+  bookingId: string,
+  data: {
+    totalAmountPaise?: number;
+    advanceAmountPaise?: number;
+    status?: BookingStatus;
+  }
+) {
+  const session = await getAdminSession();
+  if (!session) return { success: false, error: 'Unauthorized.' };
+
+  const res = await dbService.updateBooking(bookingId, data, session.adminId, session.name);
+  if (res.success) {
+    revalidatePath('/admin/bookings');
+    revalidatePath('/admin/payments');
+    return { success: true, booking: res.booking };
   }
   return { success: false, error: res.error };
 }

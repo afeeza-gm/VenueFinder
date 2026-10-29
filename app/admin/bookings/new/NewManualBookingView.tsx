@@ -43,7 +43,7 @@ export default function NewManualBookingView({ venues }: NewManualBookingViewPro
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'OFFLINE_UPI'>('CASH');
 
   const selectedSlot = currentVenue?.timeSlots.find((s) => s.id === slotId);
-  const defaultAdvance = selectedSlot ? Math.round(selectedSlot.basePricePaise * 0.5) : 0;
+  const defaultAdvance = selectedSlot ? Math.round(selectedSlot.basePricePaise * 0.25) : 0;
   const [amountCollectedPaise, setAmountCollectedPaise] = useState(defaultAdvance);
 
   const [loading, setLoading] = useState(false);
@@ -54,7 +54,7 @@ export default function NewManualBookingView({ venues }: NewManualBookingViewPro
     const v = venues.find((x) => x.id === newVenueId);
     if (v && v.timeSlots.length > 0) {
       setSlotId(v.timeSlots[0].id);
-      setAmountCollectedPaise(Math.round(v.timeSlots[0].basePricePaise * 0.5));
+      setAmountCollectedPaise(Math.round(v.timeSlots[0].basePricePaise * 0.25));
     }
   };
 
@@ -62,7 +62,7 @@ export default function NewManualBookingView({ venues }: NewManualBookingViewPro
     setSlotId(newSlotId);
     const slot = currentVenue?.timeSlots.find((s) => s.id === newSlotId);
     if (slot) {
-      setAmountCollectedPaise(Math.round(slot.basePricePaise * 0.5));
+      setAmountCollectedPaise(Math.round(slot.basePricePaise * 0.25));
     }
   };
 
@@ -299,11 +299,37 @@ export default function NewManualBookingView({ venues }: NewManualBookingViewPro
               </label>
               <input
                 type="number"
+                step="any"
                 min={0}
                 value={amountCollectedPaise / 100}
                 onChange={(e) => setAmountCollectedPaise(Math.round(parseFloat(e.target.value || '0') * 100))}
                 className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
               />
+              <span className="text-[10px] text-neutral-400 mt-0.5 block">
+                Recommended 25% advance: ₹{((selectedSlot ? Math.round(selectedSlot.basePricePaise * 0.25) : 0) / 100).toLocaleString('en-IN')}.
+              </span>
+            </div>
+          </div>
+
+          {/* Mathematical Summary Card */}
+          <div className="bg-white p-3 rounded-xl border border-neutral-200 grid grid-cols-3 gap-2 text-center text-xs">
+            <div>
+              <div className="text-[10px] text-neutral-400 font-semibold uppercase">Total Tariff</div>
+              <div className="font-bold text-neutral-900 mt-0.5">
+                ₹{((selectedSlot?.basePricePaise || 0) / 100).toLocaleString('en-IN')}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-neutral-400 font-semibold uppercase">Collecting Now</div>
+              <div className="font-bold text-emerald-700 mt-0.5">
+                ₹{(amountCollectedPaise / 100).toLocaleString('en-IN')}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-neutral-400 font-semibold uppercase">Balance Remaining</div>
+              <div className="font-bold text-amber-700 mt-0.5">
+                ₹{Math.max(0, ((selectedSlot?.basePricePaise || 0) - amountCollectedPaise) / 100).toLocaleString('en-IN')}
+              </div>
             </div>
           </div>
         </div>
