@@ -123,7 +123,7 @@ export default function PaymentsView({
               <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 font-semibold uppercase tracking-wider">
                 <tr>
                   <th className="py-3 px-4">Transaction ID</th>
-                  <th className="py-3 px-4">Booking ID</th>
+                  <th className="py-3 px-4">Booking Ref / ID</th>
                   <th className="py-3 px-4">Method</th>
                   <th className="py-3 px-4">Amount</th>
                   <th className="py-3 px-4">Status</th>
@@ -144,7 +144,7 @@ export default function PaymentsView({
                       <td className="py-3 px-4 font-mono font-semibold text-neutral-900">
                         {p.razorpayPaymentId || p.id}
                       </td>
-                      <td className="py-3 px-4 font-mono text-neutral-600">{p.bookingId}</td>
+                      <td className="py-3 px-4 font-mono text-neutral-600 font-semibold">{p.bookingReference || p.bookingId}</td>
                       <td className="py-3 px-4">
                         <span className="font-semibold text-neutral-800">{p.method || 'GATEWAY'}</span>
                       </td>

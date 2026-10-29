@@ -17,15 +17,16 @@ export async function createRazorpayOrder(params: {
   notes?: Record<string, string>;
 }) {
   try {
+    const amountInt = Math.round(params.amountPaise);
     const isMock = keyId === 'rzp_test_default_key' || !keySecret || keySecret === 'default_secret_key';
     if (isMock) {
       // Mock order generation for local offline prototype evaluation
       return {
         id: `order_mock_${Date.now()}`,
         entity: 'order',
-        amount: params.amountPaise,
+        amount: amountInt,
         amount_paid: 0,
-        amount_due: params.amountPaise,
+        amount_due: amountInt,
         currency: params.currency || 'INR',
         receipt: params.receipt,
         status: 'created',
@@ -34,7 +35,7 @@ export async function createRazorpayOrder(params: {
     }
 
     const order = await razorpayClient.orders.create({
-      amount: params.amountPaise,
+      amount: amountInt,
       currency: params.currency || 'INR',
       receipt: params.receipt,
       notes: params.notes,

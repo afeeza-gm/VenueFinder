@@ -837,6 +837,9 @@ export const dbService = {
 
   // Get availability for a specific date and hall
   async getAvailability(dateStr: string, hallId?: string) {
+    // Proactively auto-release any expired holds so calendar availability is instant & accurate
+    await this.autoReleaseExpiredHolds();
+
     const isDb = await checkDbConnection();
     const effectiveHallId = hallId || (mem.halls[0]?.id ?? 'hall-ansariya');
 
@@ -1142,8 +1145,17 @@ export const dbService = {
         const rows = await query<any>(sql, params);
         if (rows.length > 0) {
           const b = rows[0];
-          const hall = await this.getHall(b.hallId);
-          const allSlots = await this.getTimeSlots(b.hallId);
+          const [hall, allSlots, payments] = await Promise.all([
+            this.getHall(b.hallId),
+            this.getTimeSlots(b.hallId),
+            query<any>(
+              `SELECT id, booking_id AS bookingId, razorpay_order_id AS razorpayOrderId,
+                      razorpay_payment_id AS razorpayPaymentId, amount_paise AS amountPaise,
+                      currency, status, method, paid_at AS paidAt, created_at AS createdAt
+               FROM vf_payments WHERE booking_id = ? ORDER BY created_at DESC`,
+              [b.id]
+            ),
+          ]);
           const slot = allSlots.find((s) => s.id === b.slotId);
 
           return {
@@ -1154,6 +1166,11 @@ export const dbService = {
             updatedAt: formatIsoString(b.updatedAt) || '',
             hall: hall || undefined,
             slot,
+            payments: payments.map((p) => ({
+              ...p,
+              paidAt: formatIsoString(p.paidAt),
+              createdAt: formatIsoString(p.createdAt) || '',
+            })),
           };
         }
       } catch (err) {
@@ -1170,8 +1187,78 @@ export const dbService = {
 
     const hall = mem.halls.find((h) => h.id === b.hallId);
     const slot = mem.timeSlots.find((s) => s.id === b.slotId);
+    const payments = mem.payments.filter((p) => p.bookingId === b.id);
 
-    return { ...b, hall, slot };
+    return { ...b, hall, slot, payments };
+  },
+
+  // Lookup booking by ID
+  async getBookingById(
+    id: string
+  ): Promise<(Booking & { hall?: Hall; slot?: TimeSlot; payments?: Payment[] }) | null> {
+    const isDb = await checkDbConnection();
+
+    if (isDb) {
+      try {
+        const sql = `
+          SELECT 
+            b.id, b.reference, b.hall_id AS hallId, b.slot_id AS slotId,
+            b.event_date AS eventDate,
+            b.applicant_name AS applicantName, b.applicant_phone AS applicantPhone, b.applicant_email AS applicantEmail,
+            b.organisation, b.event_type AS eventType, b.guest_count AS guestCount, b.notes,
+            b.status, b.rejection_reason AS rejectionReason,
+            b.hold_expires_at AS holdExpiresAt,
+            b.total_amount_paise AS totalAmountPaise, b.advance_amount_paise AS advanceAmountPaise,
+            b.active_slot_key AS activeSlotKey,
+            b.created_at AS createdAt, b.updated_at AS updatedAt
+          FROM vf_bookings b
+          WHERE b.id = ?
+          LIMIT 1
+        `;
+        const rows = await query<any>(sql, [id]);
+        if (rows.length > 0) {
+          const b = rows[0];
+          const [hall, allSlots, payments] = await Promise.all([
+            this.getHall(b.hallId),
+            this.getTimeSlots(b.hallId),
+            query<any>(
+              `SELECT id, booking_id AS bookingId, razorpay_order_id AS razorpayOrderId,
+                      razorpay_payment_id AS razorpayPaymentId, amount_paise AS amountPaise,
+                      currency, status, method, paid_at AS paidAt, created_at AS createdAt
+               FROM vf_payments WHERE booking_id = ? ORDER BY created_at DESC`,
+              [b.id]
+            ),
+          ]);
+          const slot = allSlots.find((s) => s.id === b.slotId);
+
+          return {
+            ...b,
+            eventDate: formatDateString(b.eventDate),
+            holdExpiresAt: formatIsoString(b.holdExpiresAt),
+            createdAt: formatIsoString(b.createdAt) || '',
+            updatedAt: formatIsoString(b.updatedAt) || '',
+            hall: hall || undefined,
+            slot,
+            payments: payments.map((p) => ({
+              ...p,
+              paidAt: formatIsoString(p.paidAt),
+              createdAt: formatIsoString(p.createdAt) || '',
+            })),
+          };
+        }
+      } catch (err) {
+        console.error('[MySQL] getBookingById error:', err);
+      }
+    }
+
+    const b = mem.bookings.find((x) => x.id === id);
+    if (!b) return null;
+
+    const hall = mem.halls.find((h) => h.id === b.hallId);
+    const slot = mem.timeSlots.find((s) => s.id === b.slotId);
+    const payments = mem.payments.filter((p) => p.bookingId === b.id);
+
+    return { ...b, hall, slot, payments };
   },
 
   // Get all bookings (Admin Queue)
@@ -1225,7 +1312,15 @@ export const dbService = {
           ORDER BY b.created_at DESC
         `;
 
-        const bookings = await query<any>(sql, params);
+        const [bookings, allPayments] = await Promise.all([
+          query<any>(sql, params),
+          query<any>(
+            `SELECT id, booking_id AS bookingId, razorpay_order_id AS razorpayOrderId,
+                    razorpay_payment_id AS razorpayPaymentId, amount_paise AS amountPaise,
+                    currency, status, method, paid_at AS paidAt, created_at AS createdAt
+             FROM vf_payments ORDER BY created_at DESC`
+          ),
+        ]);
         const halls = await this.getHalls();
         const slots = await this.getTimeSlots();
 
@@ -1237,6 +1332,13 @@ export const dbService = {
           updatedAt: formatIsoString(b.updatedAt) || '',
           hall: halls.find((h) => h.id === b.hallId),
           slot: slots.find((s) => s.id === b.slotId),
+          payments: allPayments
+            .filter((p) => p.bookingId === b.id)
+            .map((p) => ({
+              ...p,
+              paidAt: formatIsoString(p.paidAt),
+              createdAt: formatIsoString(p.createdAt) || '',
+            })),
         }));
       } catch (err) {
         console.error('[MySQL] getBookings error:', err);
@@ -1247,6 +1349,7 @@ export const dbService = {
       ...b,
       hall: mem.halls.find((h) => h.id === b.hallId),
       slot: mem.timeSlots.find((s) => s.id === b.slotId),
+      payments: mem.payments.filter((p) => p.bookingId === b.id),
     }));
 
     if (filters?.status && filters.status !== 'ALL') {
@@ -1587,6 +1690,19 @@ export const dbService = {
         if (rows.length === 0) return { success: false, error: 'Booking not found' };
 
         const b = rows[0];
+
+        // Idempotency: If this payment was already recorded, return confirmed booking without duplicating
+        if (data.razorpayPaymentId) {
+          const existing = await query<any>(
+            `SELECT id FROM vf_payments WHERE razorpay_payment_id = ? LIMIT 1`,
+            [data.razorpayPaymentId]
+          );
+          if (existing.length > 0) {
+            const updated = await this.getBookingByReference(b.reference);
+            return { success: true, booking: updated || undefined };
+          }
+        }
+
         const eventDateStr = formatDateString(b.event_date);
         const activeKey = `${b.hall_id}_${eventDateStr}_${b.slot_id}`;
 
@@ -1595,19 +1711,39 @@ export const dbService = {
           [activeKey, data.bookingId]
         );
 
+        const paymentAmount = data.amountPaise || b.advance_amount_paise;
+        const paymentId = `pay-${Date.now()}`;
+
         await execute(
           `INSERT INTO vf_payments (id, booking_id, razorpay_order_id, razorpay_payment_id, amount_paise, currency, status, method, paid_at, raw_event, created_at)
-           VALUES (?, ?, ?, ?, ?, 'INR', 'PAID', ?, NOW(), ?, NOW())`,
+           VALUES (?, ?, ?, ?, ?, 'INR', 'PAID', ?, NOW(), ?, NOW())
+           ON DUPLICATE KEY UPDATE status = 'PAID', paid_at = NOW()`,
           [
-            `pay-${Date.now()}`,
+            paymentId,
             data.bookingId,
             data.razorpayOrderId || null,
             data.razorpayPaymentId || null,
-            data.amountPaise || b.advance_amount_paise,
+            paymentAmount,
             data.method || 'RAZORPAY',
             data.rawEvent ? JSON.stringify(data.rawEvent) : null,
           ]
         );
+
+        // Record Audit Log for payment confirmation
+        await execute(
+          `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
+           VALUES (?, NULL, 'Razorpay Payment Gateway', 'Booking', ?, 'PAYMENT_CONFIRMED', ?)`,
+          [
+            `log-${Date.now()}`,
+            data.bookingId,
+            JSON.stringify({
+              paymentId: data.razorpayPaymentId || paymentId,
+              orderId: data.razorpayOrderId,
+              amountPaise: paymentAmount,
+              status: 'CONFIRMED',
+            }),
+          ]
+        ).catch(() => {});
 
         const updated = await this.getBookingByReference(b.reference);
         return {
@@ -1622,17 +1758,28 @@ export const dbService = {
     const b = mem.bookings.find((x) => x.id === data.bookingId);
     if (!b) return { success: false, error: 'Booking not found' };
 
+    // Idempotency check for memory fallback
+    if (data.razorpayPaymentId) {
+      const existing = mem.payments.find((p) => p.razorpayPaymentId === data.razorpayPaymentId);
+      if (existing) {
+        return { success: true, booking: b };
+      }
+    }
+
     b.status = 'CONFIRMED';
     b.activeSlotKey = `${b.hallId}_${b.eventDate}_${b.slotId}`;
     b.holdExpiresAt = null;
     b.updatedAt = new Date().toISOString();
 
+    const paymentAmount = data.amountPaise || b.advanceAmountPaise;
+    const paymentId = `pay-${Date.now()}`;
+
     mem.payments.push({
-      id: `pay-${Date.now()}`,
+      id: paymentId,
       bookingId: b.id,
       razorpayOrderId: data.razorpayOrderId,
       razorpayPaymentId: data.razorpayPaymentId,
-      amountPaise: data.amountPaise || b.advanceAmountPaise,
+      amountPaise: paymentAmount,
       currency: 'INR',
       status: 'PAID',
       method: data.method || 'RAZORPAY',
@@ -1641,8 +1788,56 @@ export const dbService = {
       createdAt: new Date().toISOString(),
     });
 
+    mem.auditLogs.push({
+      id: `log-${Date.now()}`,
+      adminName: 'Razorpay Payment Gateway',
+      entityType: 'Booking',
+      entityId: b.id,
+      action: 'PAYMENT_CONFIRMED',
+      newValue: {
+        paymentId: data.razorpayPaymentId || paymentId,
+        orderId: data.razorpayOrderId,
+        amountPaise: paymentAmount,
+        status: 'CONFIRMED',
+      },
+      createdAt: new Date().toISOString(),
+    });
+
     mem.save();
     return { success: true, booking: b };
+  },
+
+  // Payments lookup
+  async getPayments(): Promise<Payment[]> {
+    const isDb = await checkDbConnection();
+    if (isDb) {
+      try {
+        const rows = await query<any>(
+          `SELECT 
+             p.id, p.booking_id AS bookingId, b.reference AS bookingReference,
+             p.razorpay_order_id AS razorpayOrderId, p.razorpay_payment_id AS razorpayPaymentId,
+             p.amount_paise AS amountPaise, p.currency, p.status, p.method,
+             p.paid_at AS paidAt, p.raw_event AS rawEvent, p.created_at AS createdAt
+           FROM vf_payments p
+           LEFT JOIN vf_bookings b ON p.booking_id = b.id
+           ORDER BY p.created_at DESC`
+        );
+        return rows.map((p) => ({
+          ...p,
+          paidAt: formatIsoString(p.paidAt),
+          createdAt: formatIsoString(p.createdAt) || '',
+        }));
+      } catch (err) {
+        console.error('[MySQL] getPayments error:', err);
+      }
+    }
+
+    return mem.payments
+      .map((p) => {
+        const b = mem.bookings.find((bk) => bk.id === p.bookingId);
+        return { ...p, bookingReference: b?.reference };
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
   // Cancel booking with refund calculation
@@ -1787,6 +1982,12 @@ export const dbService = {
             [refundId, pId, effectiveAmount, effectiveReason]
           );
 
+          // Update payment status in database
+          await execute(
+            `UPDATE vf_payments SET status = 'REFUNDED' WHERE id = ?`,
+            [pId]
+          );
+
           await execute(
             `INSERT INTO vf_audit_logs (id, admin_id, admin_name, entity_type, entity_id, action, new_value)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -1808,6 +2009,11 @@ export const dbService = {
       } catch (err: any) {
         console.error('[MySQL] issueRefund error:', err);
       }
+    }
+
+    const targetPayment = mem.payments.find((p) => p.id === paymentId);
+    if (targetPayment) {
+      targetPayment.status = 'REFUNDED';
     }
 
     const ref = {

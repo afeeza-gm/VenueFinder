@@ -74,6 +74,7 @@ export interface Booking {
 export interface Payment {
   id: string;
   bookingId: string;
+  bookingReference?: string | null;
   razorpayOrderId?: string | null;
   razorpayPaymentId?: string | null;
   amountPaise: number;

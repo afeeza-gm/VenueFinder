@@ -45,6 +45,8 @@ export async function cancelBookingApplicantAction(bookingId: string) {
     if (res.success) {
       revalidatePath('/status');
       revalidatePath('/availability');
+      revalidatePath('/admin/bookings');
+      revalidatePath('/admin/payments');
       return { success: true, refundEligibility: res.refundEligibility };
     }
     return { success: false, error: res.error };

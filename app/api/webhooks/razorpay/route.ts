@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/lib/db/store';
 import { verifyWebhookSignature } from '@/lib/razorpay';
+import { revalidatePath } from 'next/cache';
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,6 +37,12 @@ export async function POST(req: NextRequest) {
           amountPaise: amount,
           rawEvent: payload,
         });
+
+        // Instant admin & citizen UI revalidation
+        revalidatePath('/admin/payments');
+        revalidatePath('/admin/bookings');
+        revalidatePath('/availability');
+        revalidatePath('/status');
       }
     }
 

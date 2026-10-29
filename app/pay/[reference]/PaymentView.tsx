@@ -61,8 +61,10 @@ export default function PaymentView({
         throw new Error(orderData.error || 'Failed to initialize payment order');
       }
 
-      // 2. If simulation mode or fallback
-      if (simulate || !window.Razorpay) {
+      const isMockMode = orderData.keyId === 'rzp_test_default_key';
+
+      // 2. If simulation mode or offline mock evaluation mode
+      if (simulate || (isMockMode && !window.Razorpay)) {
         const mockPaymentId = `pay_mock_${Date.now()}`;
         const mockSignature = `mock_sig_${Date.now()}`;
 
@@ -91,6 +93,11 @@ export default function PaymentView({
         });
         setLoading(false);
         return;
+      }
+
+      // If in production/live mode and Razorpay script hasn't loaded yet
+      if (!window.Razorpay) {
+        throw new Error('Payment gateway SDK is still loading. Please try again in 2 seconds.');
       }
 
       // 3. Open Real Razorpay Checkout modal
@@ -242,7 +249,7 @@ export default function PaymentView({
 
   return (
     <div className="max-w-xl mx-auto bg-white rounded-3xl border border-[#ebebeb] p-6 sm:p-10 airbnb-card-shadow space-y-8 my-8">
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
 
       <div>
         <span className="text-[10px] uppercase font-bold tracking-wider text-[#ff385c]">

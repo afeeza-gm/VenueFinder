@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/lib/db/store';
 import { verifyPaymentSignature } from '@/lib/razorpay';
+import { revalidatePath } from 'next/cache';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid payment signature. Verification failed.' }, { status: 400 });
     }
 
-    const booking = (await dbService.getBookings()).find((b) => b.id === bookingId);
+    const booking = await dbService.getBookingById(bookingId);
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
     }
@@ -36,6 +37,13 @@ export async function POST(req: NextRequest) {
     if (!res.success) {
       return NextResponse.json({ error: res.error }, { status: 400 });
     }
+
+    // Instant Next.js cache revalidation for admin and citizen status views
+    revalidatePath('/admin/payments');
+    revalidatePath('/admin/bookings');
+    revalidatePath('/availability');
+    revalidatePath('/status');
+    revalidatePath(`/pay/${booking.reference}`);
 
     return NextResponse.json({ success: true, booking: res.booking });
   } catch (err: any) {

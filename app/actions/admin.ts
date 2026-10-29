@@ -83,6 +83,7 @@ export async function createManualBookingAction(formData: {
   const res = await dbService.createManualBooking(formData, session.adminId, session.name);
   if (res.success) {
     revalidatePath('/admin/bookings');
+    revalidatePath('/admin/payments');
     revalidatePath('/admin/calendar');
     revalidatePath('/availability');
     return { success: true, booking: res.booking };
@@ -97,6 +98,8 @@ export async function cancelBookingAdminAction(bookingId: string) {
   const res = await dbService.cancelBooking(bookingId, 'ADMIN', session.adminId, session.name);
   if (res.success) {
     revalidatePath('/admin/bookings');
+    revalidatePath('/admin/payments');
+    revalidatePath('/admin/calendar');
     revalidatePath('/availability');
     return { success: true, refundEligibility: res.refundEligibility };
   }
@@ -129,6 +132,7 @@ export async function issueRefundAction(paymentId: string, amountPaise: number, 
   const res = await dbService.issueRefund(paymentId, amountPaise, reason, session.adminId, session.name);
   if (res.success) {
     revalidatePath('/admin/payments');
+    revalidatePath('/admin/bookings');
     return { success: true, refund: res.refund };
   }
   return { success: false, error: res.error };

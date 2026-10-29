@@ -9,13 +9,10 @@ export default async function AdminPaymentsPage() {
     redirect('/admin/login');
   }
 
-  const [bookings, auditLogs] = await Promise.all([
-    dbService.getBookings(),
+  const [payments, auditLogs] = await Promise.all([
+    dbService.getPayments(),
     dbService.getAuditLogs(),
   ]);
-
-  // Collect all payments
-  const payments = bookings.flatMap((b) => b.payments || []);
 
   return <PaymentsView initialPayments={payments} initialAuditLogs={auditLogs} />;
 }
